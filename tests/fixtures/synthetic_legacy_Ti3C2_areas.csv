@@ -1,0 +1,13 @@
+sample,core_level,component,area
+Ti3C2_synthetic_legacy_demo,C 1s,C-TiTx,3000
+Ti3C2_synthetic_legacy_demo,Ti 2p,C-Ti+1-Tx,9000
+Ti3C2_synthetic_legacy_demo,Ti 2p,C-Ti+2-Tx,14000
+Ti3C2_synthetic_legacy_demo,Ti 2p,C-Ti+3-Tx,10000
+Ti3C2_synthetic_legacy_demo,Ti 2p,TiO2-xF2x (Ti),8000
+Ti3C2_synthetic_legacy_demo,O 1s,C-Ti-O (low-BE O term),5000
+Ti3C2_synthetic_legacy_demo,O 1s,TiO2-xF2x (O),2400
+Ti3C2_synthetic_legacy_demo,O 1s,high-BE O termination,1800
+Ti3C2_synthetic_legacy_demo,F 1s,F0 (C-Ti-F),11000
+Ti3C2_synthetic_legacy_demo,F 1s,F1,2000
+Ti3C2_synthetic_legacy_demo,F 1s,F2,1500
+Ti3C2_synthetic_legacy_demo,Cl 2p,C-Ti-Cl,800

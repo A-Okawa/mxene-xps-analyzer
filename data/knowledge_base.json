@@ -1,0 +1,1485 @@
+{
+  "version": "0.1.0",
+  "scope": "MAX/MXene XPS request generation, defect/dopant-aware interpretation, quantification, and vendor-vs-Python QC",
+  "principles": [
+    "Do not infer a unique chemical state from binding energy alone when multiple local environments can produce similar shifts.",
+    "Keep composition change, M-site vacancy, X-site vacancy, termination vacancy/disorder, dopant incorporation, oxidation, and secondary phases as separate latent variables.",
+    "For mixed-metal MXenes, do not renormalize the metal sublattice to the ideal M count before computing an apparent metal-deficiency index; that would erase the quantity of interest.",
+    "Treat XPS-derived vacancy concentration as apparent/surface-sensitive unless independently supported by STEM/EELS/ICP/EDS or another orthogonal method.",
+    "Keep raw and model-corrected termination estimates side-by-side; corrections must be explicit and switchable."
+  ],
+  "structures": {
+    "Ti3C2Tx": {
+      "m_target": 3.0,
+      "x_target": 2.0,
+      "default_profile": "ti3c2_brette"
+    },
+    "Nb2CTx": {
+      "m_target": 2.0,
+      "x_target": 1.0,
+      "default_profile": "nb2c_halim"
+    },
+    "(Nb,Ti)2CTx": {
+      "m_target": 2.0,
+      "x_target": 1.0,
+      "default_profile": "nbti_m2c_defect_aware"
+    }
+  },
+  "references": {
+    "Brette2024": {
+      "title": "XPS Binding Energy Shifts in 2D Ti3C2Tz MXene go largely Beyond Intuitive Explanations: Rationalization from DFT Simulations and Experiments",
+      "doi": "10.1002/smtd.202400848",
+      "use": "DFT-informed Ti3C2Tz BE interpretation; Ti 2p/C 1s/O 1s/F 1s assignments and FWHM examples."
+    },
+    "Halim2018Vacancy": {
+      "title": "Synthesis of Two-Dimensional Nb1.33C (MXene) with Randomly Distributed Vacancies by Etching of the Quaternary Solid Solution (Nb2/3Sc1/3)2AlC MAX Phase",
+      "doi": "10.1021/acsanm.8b00332",
+      "use": "Nb1.33CTx vacancy-rich reference, Nb2CTx comparison, XPS fit tables, STEM vacancy analysis."
+    },
+    "Han2020SolidSolution": {
+      "title": "Tailoring Electronic and Optical Properties of MXenes through Forming Solid Solutions",
+      "doi": "10.1021/jacs.0c07395",
+      "use": "Ti-Nb/V solid-solution MXenes, Ti1.2Nb0.8CTx XPS spectra and metal ratios; EDS comparison."
+    },
+    "Pazniak2021": {
+      "title": "Ion Implantation as an Approach for Structural Modifications and Functionalization of Ti3C2Tx MXenes",
+      "doi": "10.1021/acsnano.0c06735",
+      "use": "Doping plus Ti/C damage; XPS depth profile cross-validated with ToF-SIMS, EDS and EELS."
+    },
+    "Alonzo2025": {
+      "title": "Etching-Chemistry-Driven Ruthenium Doping on Ti3C2Tx MXene for Optimizing Electrochemical Performance",
+      "doi": "10.1021/acsnanoscienceau.5c00136",
+      "use": "Vacancy-assisted dopant accommodation; XPS plus EPR/EDS; alternative Ti oxidation-state fit model."
+    },
+    "Liu2025": {
+      "title": "Defect passivation and transformation of Ti3C2Tx MXene hollow microsphere for superior electrochemical performance and sodium-ions storage",
+      "doi": "10.1016/j.jare.2025.06.003",
+      "use": "N/S/V co-doping with lattice/functional substitution and V capture at Ti vacancies; XPS plus DFT."
+    },
+    "Halim2016": {
+      "title": "X-ray photoelectron spectroscopy of select multi-layered transition metal carbides (MXenes)",
+      "doi": "10.1016/j.apsusc.2015.11.089",
+      "use": "Legacy termination quantification framework for Ti- and Nb-based MXenes."
+    },
+    "Chen2024": {
+      "title": "Unraveling the Role of Metal Vacancy Sites and Doped Nitrogen in Enhancing Pseudocapacitance Performance of Defective MXene",
+      "doi": "10.1002/smll.202307408",
+      "journal": "Small",
+      "year": 2024,
+      "copyright_or_online_year": 2023,
+      "use": "Conceptual separation of defect and dopant variables (pristine / defect-only / dopant-only / defect+dopant)."
+    },
+    "LegacyExcel": {
+      "title": "Laboratory workbook mxene_surface_functional_group_quant_template_v2 (private, not distributed)",
+      "doi": null,
+      "use": "Historical Ti3C2Tx operational quantification logic; reproduced exactly by the legacy model."
+    }
+  },
+  "profiles": {
+    "ti3c2_brette": {
+      "material": "Ti3C2Tx",
+      "notes": [
+        "Primary interpretation follows Brette et al.; Ti 2p shifts should not be mapped one-to-one onto oxidation states.",
+        "O 1s near 531 eV can reflect disordered/mixed termination environments and termination vacancies; do not automatically call it OH.",
+        "F 1s is comparatively insensitive to local environment; a single MXene-F contribution can represent multiple local configurations.",
+        "Brette2024 identified a single F 1s contribution in HF10 and HF48 spectra; no F residue value is reported there."
+      ],
+      "fit_models": {
+        "Ti 2p": [
+          {
+            "name": "Ti_lowBE",
+            "kind": "doublet",
+            "center": 454.9,
+            "bounds": [
+              454.3,
+              455.4
+            ],
+            "fwhm": 1.0,
+            "fwhm_bounds": [
+              0.6,
+              1.8
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "Low-BE Ti-C / weakly or unfunctionalized surface Ti / volume Ti candidate; assignment is environment-dependent.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S3-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "Ti 2p3/2",
+                "center": 454.9,
+                "fwhm": 1.0,
+                "si_label": "Ti1",
+                "secondary": {
+                  "line": "Ti 2p1/2",
+                  "center": 460.8,
+                  "fwhm": 1.1
+                },
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "Ti_midBE",
+            "kind": "doublet",
+            "center": 455.6,
+            "bounds": [
+              455.0,
+              456.2
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "Termination-sensitive Ti contribution; may include Ti environments associated with F/OH and O-affected volume Ti.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S3-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "Ti 2p3/2",
+                "center": 455.6,
+                "fwhm": 1.6,
+                "si_label": "Ti2",
+                "secondary": {
+                  "line": "Ti 2p1/2",
+                  "center": 461.5,
+                  "fwhm": 1.6
+                },
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "Ti_highBE",
+            "kind": "doublet",
+            "center": 456.8,
+            "bounds": [
+              456.1,
+              457.5
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "split": 5.7,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "High-BE surface Ti strongly affected by O termination; not simply Ti3+ or Ti4+.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S3-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "Ti 2p3/2",
+                "center": 456.8,
+                "fwhm": 1.7,
+                "si_label": "Ti3",
+                "secondary": {
+                  "line": "Ti 2p1/2",
+                  "center": 462.4,
+                  "fwhm": 1.6
+                },
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "Ti_oxide_oxyfluoride",
+            "kind": "doublet",
+            "center": 459.3,
+            "bounds": [
+              458.3,
+              460.1
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              1.0,
+              3.2
+            ],
+            "split": 5.6,
+            "ratio_primary_secondary": 2.0,
+            "role": "metal_oxide",
+            "interpretation": "Ti oxide/oxyfluoride contribution; excluded from MXene framework Ti by default.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S3-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "Ti 2p3/2",
+                "center": 459.3,
+                "fwhm": 1.8,
+                "si_label": "TiO2-xF2x",
+                "secondary": {
+                  "line": "Ti 2p1/2",
+                  "center": 464.8,
+                  "fwhm": 3.2
+                },
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 281.85,
+            "bounds": [
+              281.3,
+              282.4
+            ],
+            "fwhm": 0.7,
+            "fwhm_bounds": [
+              0.4,
+              1.2
+            ],
+            "role": "framework_C",
+            "interpretation": "Carbide C in Ti3C2Tz; relatively insensitive to termination chemistry.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S4-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "C 1s",
+                "center": 281.8,
+                "fwhm": 0.6,
+                "si_label": "MXene",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "C_contam_1",
+            "kind": "single",
+            "center": 284.3,
+            "bounds": [
+              283.6,
+              285.1
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Contamination carbon (~284.x eV in Brette SI, HF10%). Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S4-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "C 1s",
+                "center": 284.1,
+                "fwhm": 1.9,
+                "si_label": "contamination",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "C_contam_2",
+            "kind": "single",
+            "center": 286.3,
+            "bounds": [
+              285.3,
+              287.4
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Contamination / oxygenated carbon (~286.x eV in Brette SI). Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S4-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "C 1s",
+                "center": 286.4,
+                "fwhm": 1.8,
+                "si_label": "contamination",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "C_contam_3",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              287.6,
+              290.2
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.8,
+              3.5
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Higher oxygenated / carboxyl contamination (~288.x eV); include only as required. Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S4-A",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "C 1s",
+                "center": 288.9,
+                "fwhm": 2.0,
+                "si_label": "contamination",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "O_ideal",
+            "kind": "single",
+            "center": 529.8,
+            "bounds": [
+              529.2,
+              530.5
+            ],
+            "fwhm": 1.0,
+            "fwhm_bounds": [
+              0.6,
+              1.8
+            ],
+            "role": "termination_O",
+            "interpretation": "O termination on comparatively ordered/ideal Ti3C2Tz surface; oxide overlap must be checked against Ti 2p.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S5-B",
+                "dataset": "HF10",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 529.7,
+                "fwhm": 1.0,
+                "si_label": "MXene (P1)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S8",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "O 1s",
+                "center": 529.6,
+                "fwhm": 0.9,
+                "si_label": "MXene (P1)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 529.8,
+                "fwhm": 1.0,
+                "si_label": "MXene (P1)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "O_disordered",
+            "kind": "single",
+            "center": 531.0,
+            "bounds": [
+              530.4,
+              531.7
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_O_disordered",
+            "interpretation": "O on disordered/mixed surfaces, including termination-vacancy environments; not automatically OH.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S5-B",
+                "dataset": "HF10",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 531.0,
+                "fwhm": 2.0,
+                "si_label": "MXene (P2)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S8",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "O 1s",
+                "center": 531.1,
+                "fwhm": 2.0,
+                "si_label": "MXene (P2)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 531.0,
+                "fwhm": 2.0,
+                "si_label": "MXene (P2)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ],
+            "literature_interpretation": "Brette2024: the ~531 eV contribution (P2) is O in Ti3C2Tz with disordered surfaces (mix and/or vacancies on T-groups); its magnitude probes surface disorder, especially vacancy-induced (it grows at the expense of P1 when F desorbs on Ar sputtering). It is NOT a uniquely assigned OH state; the OH-like contribution is the separate ~532 eV P3 (Ti3C2(OH)2 model)."
+          },
+          {
+            "name": "OH_like",
+            "kind": "single",
+            "center": 532.2,
+            "bounds": [
+              531.6,
+              533.1
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_OH_like",
+            "interpretation": "OH-like termination contribution; cross-check with synthesis and other O components.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S5-B",
+                "dataset": "HF10",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 532.5,
+                "fwhm": 1.6,
+                "si_label": "MXene (P3)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S8",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "O 1s",
+                "center": 532.5,
+                "fwhm": 1.5,
+                "si_label": "MXene (P3)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 532.0,
+                "fwhm": 1.7,
+                "si_label": "MXene (P3)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "O_adsorbate",
+            "kind": "single",
+            "center": 534.0,
+            "bounds": [
+              533.0,
+              536.2
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.2
+            ],
+            "role": "adsorbate",
+            "interpretation": "Adsorbed water/oxygen-containing residue; exclude from Tx by default.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S5-B",
+                "dataset": "HF10",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 534.0,
+                "fwhm": 1.6,
+                "si_label": "H2O + OR (P4)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S8",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "O 1s",
+                "center": 534.0,
+                "fwhm": 2.1,
+                "si_label": "H2O + OR (P4)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 533.8,
+                "fwhm": 1.7,
+                "si_label": "OR (P4)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "O 1s",
+                "center": 535.8,
+                "fwhm": 2.0,
+                "si_label": "H2O (P4)",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "F_MXene",
+            "kind": "single",
+            "center": 684.9,
+            "bounds": [
+              684.2,
+              685.7
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.7,
+              2.3
+            ],
+            "role": "termination_F",
+            "interpretation": "MXene-F termination candidate. One peak does not imply one microscopic F environment.",
+            "source": "Brette2024",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Brette2024",
+                "table": "S5-B",
+                "dataset": "HF10",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "F 1s",
+                "center": 684.9,
+                "fwhm": 1.3,
+                "si_label": "MXene",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S4-B",
+                "dataset": "HF10",
+                "sample_state": "before Ar sputtering",
+                "line": "F 1s",
+                "center": 684.8,
+                "fwhm": 1.3,
+                "si_label": "MXene",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              },
+              {
+                "source": "Brette2024",
+                "table": "S5-A",
+                "dataset": "HF48",
+                "sample_state": "no sputtering stated (Part S5)",
+                "line": "F 1s",
+                "center": 685.1,
+                "fwhm": 1.6,
+                "si_label": "MXene",
+                "note": "Literature reference value only; not a starting value, constraint or fixed position."
+              }
+            ]
+          },
+          {
+            "name": "F_residue",
+            "kind": "single",
+            "center": 686.5,
+            "bounds": [
+              685.7,
+              688.4
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "residue_F",
+            "interpretation": "Optional high-BE fluoride/fluoroaluminate residue; include only if statistically required and chemically supported.",
+            "source": "Halim2016",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2016; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ]
+      }
+    },
+    "nb2c_halim": {
+      "material": "Nb2CTx",
+      "notes": [
+        "Reference positions are from delaminated Nb2CTx and vacancy-rich Nb1.33CTx measured with Fermi-edge referencing.",
+        "The vacancy-rich sample was not fit with a unique vacancy-only Nb 3d component; vacancy interpretation should therefore be comparative and supported independently.",
+        "Nb 3d MXene and Nb2O5 doublets strongly overlap; use constraints and inspect residuals."
+      ],
+      "fit_models": {
+        "Nb 3d": [
+          {
+            "name": "Nb_MXene",
+            "kind": "doublet",
+            "center": 204.8,
+            "bounds": [
+              204.1,
+              205.6
+            ],
+            "fwhm": 1.1,
+            "fwhm_bounds": [
+              0.8,
+              2.2
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "framework_metal",
+            "interpretation": "C-Nb-Tx framework contribution.",
+            "source": "Halim2018Vacancy",
+            "assignment_status": "candidate",
+            "provenance": "Starting center/FWHM = Halim SI Nb2CTx value (user decision D2); bounds and fwhm_bounds are editable software fit windows (§27), not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Halim2018Vacancy",
+                "dataset": "Nb2CTx",
+                "line": "Nb 3d5/2",
+                "center": 204.8,
+                "fwhm": 1.1,
+                "note": "Halim2018Vacancy SI, Nb2CTx (C-Nb-Tx / Nb2O5 / NbF5); initial/reference value, not a hard-fixed position."
+              }
+            ]
+          },
+          {
+            "name": "Nb2O5",
+            "kind": "doublet",
+            "center": 207.3,
+            "bounds": [
+              206.7,
+              208.2
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_oxide",
+            "interpretation": "Nb(V) oxide contribution.",
+            "source": "Halim2018Vacancy",
+            "assignment_status": "candidate",
+            "provenance": "Starting center/FWHM = Halim SI Nb2CTx value (user decision D2); bounds and fwhm_bounds are editable software fit windows (§27), not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Halim2018Vacancy",
+                "dataset": "Nb2CTx",
+                "line": "Nb 3d5/2",
+                "center": 207.3,
+                "fwhm": 1.7,
+                "note": "Halim2018Vacancy SI, Nb2CTx (C-Nb-Tx / Nb2O5 / NbF5); initial/reference value, not a hard-fixed position."
+              }
+            ]
+          },
+          {
+            "name": "NbF5_like",
+            "kind": "doublet",
+            "center": 209.2,
+            "bounds": [
+              208.7,
+              210.3
+            ],
+            "fwhm": 1.0,
+            "fwhm_bounds": [
+              0.7,
+              2.4
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_fluoride",
+            "interpretation": "Nb fluoride-like residue; small component in the cited Nb samples.",
+            "source": "Halim2018Vacancy",
+            "assignment_status": "candidate",
+            "provenance": "Starting center/FWHM = Halim SI Nb2CTx value (user decision D2); bounds and fwhm_bounds are editable software fit windows (§27), not literature constants.",
+            "literature_reference": [
+              {
+                "source": "Halim2018Vacancy",
+                "dataset": "Nb2CTx",
+                "line": "Nb 3d5/2",
+                "center": 209.2,
+                "fwhm": 1.0,
+                "note": "Halim2018Vacancy SI, Nb2CTx (C-Nb-Tx / Nb2O5 / NbF5); initial/reference value, not a hard-fixed position."
+              }
+            ]
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 282.5,
+            "bounds": [
+              281.8,
+              283.1
+            ],
+            "fwhm": 0.85,
+            "fwhm_bounds": [
+              0.5,
+              1.4
+            ],
+            "role": "framework_C",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-Nb-Tx (282.5 eV in Halim2018Vacancy). Framework carbide C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "C_C",
+            "kind": "single",
+            "center": 285.1,
+            "bounds": [
+              284.3,
+              285.6
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-C. Contamination; excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "CHx",
+            "kind": "single",
+            "center": 285.7,
+            "bounds": [
+              285.0,
+              286.3
+            ],
+            "fwhm": 1.3,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label CHx. Contamination; excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "C_O",
+            "kind": "single",
+            "center": 286.65,
+            "bounds": [
+              286.0,
+              287.4
+            ],
+            "fwhm": 1.75,
+            "fwhm_bounds": [
+              0.9,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-O. Contamination; excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "COO",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              288.0,
+              289.7
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label COO. Contamination; excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "Nb2O5_O",
+            "kind": "single",
+            "center": 530.45,
+            "bounds": [
+              529.8,
+              531.0
+            ],
+            "fwhm": 1.25,
+            "fwhm_bounds": [
+              0.7,
+              2.0
+            ],
+            "role": "oxide_O",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label Nb2O5 (oxide O). Overlaps the C-Nb-Ox window; cross-check against the Nb 3d oxide component.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Nb_O_term",
+            "kind": "single",
+            "center": 531.2,
+            "bounds": [
+              530.6,
+              531.8
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "role": "termination_O",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-Nb-Ox. O-termination candidate.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Nb_OH_term",
+            "kind": "single",
+            "center": 532.4,
+            "bounds": [
+              531.7,
+              533.1
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "role": "termination_OH_like",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-Nb-(OH)x. OH-like termination candidate.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "H2O_ads",
+            "kind": "single",
+            "center": 533.5,
+            "bounds": [
+              532.9,
+              534.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "adsorbate",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label H2Oads. Adsorbate; excluded from Tx by default.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "Nb_F_term",
+            "kind": "single",
+            "center": 684.7,
+            "bounds": [
+              684.0,
+              685.5
+            ],
+            "fwhm": 1.45,
+            "fwhm_bounds": [
+              0.7,
+              2.3
+            ],
+            "role": "termination_F",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label C-Nb-Fx. F-termination candidate.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "NbF_residue",
+            "kind": "single",
+            "center": 686.2,
+            "bounds": [
+              685.6,
+              687.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.7,
+              2.8
+            ],
+            "role": "residue_F",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Literature label NbF5 (Nb2CTx) or NbF3 and/or ScF3 (Nb1.33CTx). Fluoride residue candidate; not counted as Tx by default.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ]
+      }
+    },
+    "nbti_m2c_defect_aware": {
+      "material": "(Nb,Ti)2CTx",
+      "notes": [
+        "This is a conservative composite profile assembled from Ti-Nb solid-solution, Nb-vacancy, and Ti3C2 XPS references; no single cited paper uniquely resolves all variables in a defect-rich (Nb,Ti)2CTx sample.",
+        "Fit Ti 2p and Nb 3d independently, then integrate the interpretation across C 1s/O 1s/F 1s and composition data.",
+        "Do not force a vacancy-specific peak. Report selective Ti/Nb depletion and apparent M-site deficiency separately from absolute vacancy concentration.",
+        "For O 1s, mixed Ti/Nb oxides and terminations overlap. Component roles should remain provisional until Ti/Nb core-level consistency is checked."
+      ],
+      "fit_models": {
+        "Ti 2p": [
+          {
+            "name": "Ti_lowBE",
+            "kind": "doublet",
+            "center": 454.9,
+            "bounds": [
+              454.2,
+              455.5
+            ],
+            "fwhm": 1.1,
+            "fwhm_bounds": [
+              0.6,
+              2.0
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024",
+            "interpretation": "Low-BE Ti-C / weakly or unfunctionalized surface Ti / volume Ti candidate; assignment is environment-dependent. Transferred from the Ti3C2Tz reference (Brette2024) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Ti_midBE",
+            "kind": "doublet",
+            "center": 455.7,
+            "bounds": [
+              455.0,
+              456.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024",
+            "interpretation": "Termination-sensitive Ti contribution; may include Ti environments associated with F/OH and O-affected volume Ti. Transferred from the Ti3C2Tz reference (Brette2024) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Ti_highBE",
+            "kind": "doublet",
+            "center": 456.8,
+            "bounds": [
+              456.1,
+              457.6
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.6
+            ],
+            "split": 5.7,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024",
+            "interpretation": "High-BE surface Ti strongly affected by O termination; not simply Ti3+ or Ti4+. Transferred from the Ti3C2Tz reference (Brette2024) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Ti_oxide",
+            "kind": "doublet",
+            "center": 459.2,
+            "bounds": [
+              458.2,
+              460.2
+            ],
+            "fwhm": 1.9,
+            "fwhm_bounds": [
+              1.0,
+              3.3
+            ],
+            "split": 5.6,
+            "ratio_primary_secondary": 2.0,
+            "role": "metal_oxide",
+            "source": "Brette2024",
+            "interpretation": "Ti oxide/oxyfluoride contribution; excluded from MXene framework Ti by default. Transferred from the Ti3C2Tz reference (Brette2024) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "Nb 3d": [
+          {
+            "name": "Nb_MXene",
+            "kind": "doublet",
+            "center": 204.9,
+            "bounds": [
+              204.0,
+              205.7
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "framework_metal",
+            "source": "Halim2018Vacancy",
+            "interpretation": "C-Nb-Tx framework contribution. Transferred from the Nb2CTx/Nb1.33CTx reference (Halim2018Vacancy) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "Nb2O5",
+            "kind": "doublet",
+            "center": 207.45,
+            "bounds": [
+              206.6,
+              208.3
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_oxide",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Nb(V) oxide contribution. Transferred from the Nb2CTx/Nb1.33CTx reference (Halim2018Vacancy) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "NbF5_like",
+            "kind": "doublet",
+            "center": 209.45,
+            "bounds": [
+              208.6,
+              210.4
+            ],
+            "fwhm": 1.3,
+            "fwhm_bounds": [
+              0.7,
+              2.5
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_fluoride",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Nb fluoride-like residue; small component in the cited Nb samples. Transferred from the Nb2CTx/Nb1.33CTx reference (Halim2018Vacancy) as a composite starting model; not independently validated for (Nb,Ti)2CTx.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 282.15,
+            "bounds": [
+              281.3,
+              283.0
+            ],
+            "fwhm": 0.9,
+            "fwhm_bounds": [
+              0.5,
+              1.5
+            ],
+            "role": "framework_C",
+            "interpretation": "Mixed-metal carbide C; Ti and Nb references bracket the expected range. Do not split without a reproducible shoulder and chemical justification.",
+            "source": "Han2020SolidSolution",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Han2020SolidSolution; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "C_C",
+            "kind": "single",
+            "center": 284.5,
+            "bounds": [
+              283.7,
+              285.4
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Contamination carbon. Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "C_O",
+            "kind": "single",
+            "center": 286.3,
+            "bounds": [
+              285.4,
+              287.5
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Contamination / oxygenated carbon. Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "COO",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              287.8,
+              290.1
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.9,
+              3.4
+            ],
+            "role": "contaminant",
+            "source": "Brette2024",
+            "interpretation": "Higher oxygenated / carboxyl contamination. Excluded from framework C.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "O_low",
+            "kind": "single",
+            "center": 530.1,
+            "bounds": [
+              529.3,
+              530.8
+            ],
+            "fwhm": 1.1,
+            "fwhm_bounds": [
+              0.6,
+              2.0
+            ],
+            "role": "O_unresolved_low",
+            "interpretation": "May include Ti/Nb oxide O and/or ordered O termination; classify only after metal-core cross-check.",
+            "source": "Brette2024",
+            "assignment_status": "unresolved",
+            "provenance": "Starting center informed by Brette2024; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "O_mid",
+            "kind": "single",
+            "center": 531.1,
+            "bounds": [
+              530.5,
+              531.8
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.7
+            ],
+            "role": "O_unresolved_mid",
+            "interpretation": "May include Nb-O termination and disordered/mixed Ti-O termination environments.",
+            "source": "Halim2018Vacancy",
+            "assignment_status": "unresolved",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "OH_like",
+            "kind": "single",
+            "center": 532.4,
+            "bounds": [
+              531.7,
+              533.2
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_OH_like",
+            "source": "Halim2018Vacancy",
+            "interpretation": "OH-like termination candidate (C-Nb-(OH)x in Halim2018Vacancy; OH-like in Brette2024). Not attributed to Ti vs Nb.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "O_adsorbate",
+            "kind": "single",
+            "center": 533.7,
+            "bounds": [
+              533.0,
+              535.5
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.2
+            ],
+            "role": "adsorbate",
+            "source": "Halim2018Vacancy",
+            "interpretation": "Water/organic surface species candidate. Excluded from Tx by default.",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "F_MXene",
+            "kind": "single",
+            "center": 684.8,
+            "bounds": [
+              684.0,
+              685.6
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.7,
+              2.4
+            ],
+            "role": "termination_F",
+            "source": "Halim2018Vacancy",
+            "interpretation": "MXene-F termination candidate (C-Nb-Fx in Halim2018Vacancy). Not attributed to Ti- vs Nb-bound F; one F 1s peak can represent several local F environments (Brette2024).",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          },
+          {
+            "name": "F_residue",
+            "kind": "single",
+            "center": 686.2,
+            "bounds": [
+              685.6,
+              688.2
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "residue_F",
+            "interpretation": "Metal fluoride / fluoroaluminate / salt residue candidate; do not count as Tx by default.",
+            "source": "Halim2018Vacancy",
+            "assignment_status": "candidate",
+            "provenance": "Starting center informed by Halim2018Vacancy; bounds and fwhm_bounds are software fit windows, not literature constants."
+          }
+        ]
+      }
+    }
+  },
+  "legacy_excel": {
+    "name": "Legacy Ti3C2Tx surface-functional-group quantification model",
+    "rules": {
+      "framework_C": "C-TiTx only",
+      "framework_Ti": "Sum C-Ti+1-Tx, C-Ti+2-Tx, C-Ti+3-Tx; exclude TiO2-xF2x(Ti)",
+      "O_termination": "low-BE O + optional high-BE O component",
+      "F_termination": "F0 by default; F1/F2 optional",
+      "F_oxide_correction": "F_corr = max(0, F_raw - O_oxide * factor), legacy factor 0.6667",
+      "Cl_termination": "optional C-Ti-Cl",
+      "normalization": "Scale by 2 / framework_C, then compare Ti_norm with 3",
+      "QC": "Ti_norm within 3 +/- 0.5; corrected z_total between 1 and 3"
+    },
+    "default_rsf": {
+      "C 1s": 0.314,
+      "Ti 2p": 2.077,
+      "O 1s": 0.733,
+      "F 1s": 1.0,
+      "Cl 2p": 0.954
+    },
+    "source": "LegacyExcel"
+  },
+  "solid_solution_reference": {
+    "Ti2-yNbyCTx": {
+      "source": "Han2020SolidSolution",
+      "note": "Published XPS stoichiometries were normalized using one theoretical metal amount; useful for composition trends but not as an absolute vacancy calibration.",
+      "xps_atomic_percent": [
+        {
+          "y": 0.4,
+          "Ti": 18.46,
+          "Nb": 5.43,
+          "C": 12.91,
+          "O": 21.18,
+          "F": 6.25
+        },
+        {
+          "y": 0.8,
+          "Ti": 13.7,
+          "Nb": 11.21,
+          "C": 12.78,
+          "O": 27.67,
+          "F": 6.47
+        },
+        {
+          "y": 1.2,
+          "Ti": 9.78,
+          "Nb": 15.23,
+          "C": 16.05,
+          "O": 17.29,
+          "F": 4.62
+        },
+        {
+          "y": 1.6,
+          "Ti": 4.51,
+          "Nb": 14.48,
+          "C": 12.35,
+          "O": 18.77,
+          "F": 11.57
+        }
+      ]
+    }
+  },
+  "validation_defaults": {
+    "delta_be_pass_eV": 0.3,
+    "delta_be_review_eV": 0.5,
+    "fwhm_rel_pass": 0.25,
+    "fwhm_rel_review": 0.5,
+    "area_fraction_abs_pass": 0.1,
+    "area_fraction_abs_review": 0.2,
+    "note": "Thresholds are conservative QC defaults, not literature constants; expose them to the user. Brette et al. estimate ~0.5 eV numerical uncertainty for their DFT BE calculations and note experimental resolutions around ~0.3 eV in cited MXene work."
+  },
+  "kb_version": "1.2.0",
+  "seed_version": "0.1.0",
+  "created_at": "2026-10-15",
+  "reviewed_by": null,
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "note": "Prototype seed (handoff §27)."
+    },
+    {
+      "version": "1.0.0",
+      "note": "Numerical values unchanged from 0.1.0. Added per-component interpretation caveats (wording from handoff §12-§16), assignment_status, provenance, Chen2023/LegacyExcel references, spec_discrepancies."
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-10-16",
+      "note": "User decisions D1-D3: D1 §27 kept for Ti3C2Tx, Brette SI values added as literature_reference; D2 nb2c_halim Nb 3d center/FWHM -> Halim SI Nb2CTx 204.8/207.3/209.2 eV, 1.1/1.7/1.0 eV (windows unchanged); D3 Chen2023 -> Chen2024, Halim2016 kept."
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-10-16",
+      "note": "literature_reference is now a list of SI-table-labelled entries. Added Brette SI O 1s/F 1s values for HF10 (Tables S5-B, S8, S4-B; before sputtering / no sputtering stated) and HF48 (Table S5-A) as reference metadata only; §27 starting values and fitting windows unchanged. Added Brette interpretation of ~531 eV O 1s (disordered/mixed terminations and T-group vacancies, not unique OH) to O_disordered."
+    }
+  ],
+  "spec_discrepancies": [
+    {
+      "id": "D1",
+      "topic": "Ti3C2Tx (ti3c2_brette) Ti 2p starting model",
+      "detail": "Handoff §12 table (bounds 454.2-455.5, FWHM 1.1 (0.6-2.0), Ti_midBE 455.7, oxide 459.2/1.9; identical to the (Nb,Ti)2CTx profile) vs §27 JSON ti3c2_brette (454.3-455.4, FWHM 1.0 (0.6-1.8), Ti_midBE 455.6, Ti_oxide_oxyfluoride 459.3/1.8).",
+      "status": "resolved",
+      "decision": "Adopt §27 JSON for Ti3C2Tx. Brette SI experimental centers/FWHMs are kept as literature_reference values; fitting windows (bounds, fwhm_bounds) are editable implementation bounds.",
+      "decided_by": "user",
+      "decided_at": "2026-10-16"
+    },
+    {
+      "id": "D2",
+      "topic": "Nb2CTx (nb2c_halim) Nb 3d starting model",
+      "detail": "Handoff §13 table vs §27 JSON nb2c_halim differed.",
+      "status": "resolved",
+      "decision": "Reference centers/FWHMs set to the Halim SI Nb2CTx values: Nb 3d5/2 = 204.8/207.3/209.2 eV, FWHM = 1.1/1.7/1.0 eV (C-Nb-Tx/Nb2O5/NbF5). Initial/reference values, not hard-fixed positions; §27 fit windows unchanged.",
+      "decided_by": "user",
+      "decided_at": "2026-10-16"
+    },
+    {
+      "id": "D3",
+      "topic": "Reference source keys",
+      "detail": "§25 recommends Halim2016XPS/Chen2023; §27 JSON uses Halim2016; Chen et al. cited as Small 2024 (§15.4) but filename says 2023 (§26).",
+      "status": "resolved",
+      "decision": "Keep reference ID Halim2016. Standardize Chen to Chen2024 (year 2024); 2023 retained as copyright_or_online_year metadata.",
+      "decided_by": "user",
+      "decided_at": "2026-10-16"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+# ---------------------------------------------------------------------------
+# Unpublished experimental data must never be committed (handoff §3, §10.4)
+# ---------------------------------------------------------------------------
+private/*
+!private/README.md
+data/raw/
+uploads/
+real_data/
+calibration_data/
+
+# Spreadsheets / instrument & fitting-software formats
+*.xlsx
+*.xls
+*.xlsm
+*.ods
+*.vms
+*.vamas
+*.casa
+*.spe
+*.pro
+*.kal
+*.vgd
+*.vgp
+*.npl
+*.sxy
+
+# Generic spectrum / table / export files (real data may arrive in any of these)
+*.csv
+*.tsv
+*.txt
+*.dat
+*.xy
+*.json
+*.html
+*.png
+*.svg
+*.pdf
+
+# App exports (project/session JSON, reports, plots) – may contain unpublished data
+*_xps_project.json
+*_xps_report.html
+*_quantification.csv
+*_python_fit.csv
+*_validation*.csv
+*_curves.csv
+*_fit.png
+*_fit.svg
+*_fit.pdf
+
+# ---- Explicit allow-list for public, non-experimental files ----
+!requirements.txt
+!data/knowledge_base.json
+!tools/kb_seed_from_handoff_s27.json
+# Only synthetic fixtures are allowed under tests/fixtures/
+!tests/fixtures/synthetic_*
+!docs/screenshots/
+!docs/screenshots/*.png
+
+# ---------------------------------------------------------------------------
+# Secrets / personal configuration
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.pem
+*.key
+.streamlit/secrets.toml
+.claude/
+
+# ---------------------------------------------------------------------------
+# Environments, caches, temporary files
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+*.log
+*.tmp
+*~
+.DS_Store

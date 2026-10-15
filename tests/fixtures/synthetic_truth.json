@@ -1,0 +1,63 @@
+{
+  "Ti2p": {
+    "core": "Ti 2p",
+    "profile": "nbti_m2c_defect_aware",
+    "truth": [
+      {
+        "component": "Ti_lowBE",
+        "center": 454.82,
+        "fwhm": 1.05,
+        "eta": 0.3,
+        "area_primary": 2500
+      },
+      {
+        "component": "Ti_midBE",
+        "center": 455.75,
+        "fwhm": 1.55,
+        "eta": 0.38,
+        "area_primary": 2100
+      },
+      {
+        "component": "Ti_highBE",
+        "center": 456.92,
+        "fwhm": 1.72,
+        "eta": 0.42,
+        "area_primary": 1600
+      },
+      {
+        "component": "Ti_oxide",
+        "center": 459.15,
+        "fwhm": 1.95,
+        "eta": 0.35,
+        "area_primary": 900
+      }
+    ]
+  },
+  "Nb3d": {
+    "core": "Nb 3d",
+    "profile": "nbti_m2c_defect_aware",
+    "truth": [
+      {
+        "component": "Nb_MXene",
+        "center": 204.95,
+        "fwhm": 1.35,
+        "eta": 0.25,
+        "area_primary": 2850
+      },
+      {
+        "component": "Nb2O5",
+        "center": 207.4,
+        "fwhm": 1.55,
+        "eta": 0.2,
+        "area_primary": 860
+      },
+      {
+        "component": "NbF5_like",
+        "center": 209.45,
+        "fwhm": 1.25,
+        "eta": 0.15,
+        "area_primary": 210
+      }
+    ]
+  }
+}

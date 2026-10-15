@@ -1,0 +1,16 @@
+sample,core_level,element,component,BE,FWHM,area,role,notes
+NbTi_synthetic_demo,C 1s,C,C_MXene,,,1.0,framework_C,SYNTHETIC demo value
+NbTi_synthetic_demo,C 1s,C,C_C,,,2.1,contaminant,SYNTHETIC demo value
+NbTi_synthetic_demo,Ti 2p,Ti,Ti_lowBE,,,0.18,framework_metal,SYNTHETIC demo value
+NbTi_synthetic_demo,Ti 2p,Ti,Ti_midBE,,,0.14,framework_metal,SYNTHETIC demo value
+NbTi_synthetic_demo,Ti 2p,Ti,Ti_highBE,,,0.1,framework_metal,SYNTHETIC demo value
+NbTi_synthetic_demo,Ti 2p,Ti,Ti_oxide,,,0.12,metal_oxide,SYNTHETIC demo value
+NbTi_synthetic_demo,Nb 3d,Nb,Nb_MXene,,,1.15,framework_metal,SYNTHETIC demo value
+NbTi_synthetic_demo,Nb 3d,Nb,Nb2O5,,,0.45,metal_oxide,SYNTHETIC demo value
+NbTi_synthetic_demo,Nb 3d,Nb,NbF5_like,,,0.03,metal_fluoride,SYNTHETIC demo value
+NbTi_synthetic_demo,O 1s,O,O_low,,,0.55,O_unresolved_low,SYNTHETIC demo value
+NbTi_synthetic_demo,O 1s,O,O_mid,,,0.4,O_unresolved_mid,SYNTHETIC demo value
+NbTi_synthetic_demo,O 1s,O,OH_like,,,0.35,termination_OH_like,SYNTHETIC demo value
+NbTi_synthetic_demo,O 1s,O,O_adsorbate,,,0.15,adsorbate,SYNTHETIC demo value
+NbTi_synthetic_demo,F 1s,F,F_MXene,,,0.7,termination_F,SYNTHETIC demo value
+NbTi_synthetic_demo,F 1s,F,F_residue,,,0.25,residue_F,SYNTHETIC demo value

@@ -1,0 +1,959 @@
+{
+  "version": "0.1.0",
+  "scope": "MAX/MXene XPS request generation, defect/dopant-aware interpretation, quantification, and vendor-vs-Python QC",
+  "principles": [
+    "Do not infer a unique chemical state from binding energy alone when multiple local environments can produce similar shifts.",
+    "Keep composition change, M-site vacancy, X-site vacancy, termination vacancy/disorder, dopant incorporation, oxidation, and secondary phases as separate latent variables.",
+    "For mixed-metal MXenes, do not renormalize the metal sublattice to the ideal M count before computing an apparent metal-deficiency index; that would erase the quantity of interest.",
+    "Treat XPS-derived vacancy concentration as apparent/surface-sensitive unless independently supported by STEM/EELS/ICP/EDS or another orthogonal method.",
+    "Keep raw and model-corrected termination estimates side-by-side; corrections must be explicit and switchable."
+  ],
+  "structures": {
+    "Ti3C2Tx": {
+      "m_target": 3.0,
+      "x_target": 2.0,
+      "default_profile": "ti3c2_brette"
+    },
+    "Nb2CTx": {
+      "m_target": 2.0,
+      "x_target": 1.0,
+      "default_profile": "nb2c_halim"
+    },
+    "(Nb,Ti)2CTx": {
+      "m_target": 2.0,
+      "x_target": 1.0,
+      "default_profile": "nbti_m2c_defect_aware"
+    }
+  },
+  "references": {
+    "Brette2024": {
+      "title": "XPS Binding Energy Shifts in 2D Ti3C2Tz MXene go largely Beyond Intuitive Explanations: Rationalization from DFT Simulations and Experiments",
+      "doi": "10.1002/smtd.202400848",
+      "use": "DFT-informed Ti3C2Tz BE interpretation; Ti 2p/C 1s/O 1s/F 1s assignments and FWHM examples."
+    },
+    "Halim2018Vacancy": {
+      "title": "Synthesis of Two-Dimensional Nb1.33C (MXene) with Randomly Distributed Vacancies by Etching of the Quaternary Solid Solution (Nb2/3Sc1/3)2AlC MAX Phase",
+      "doi": "10.1021/acsanm.8b00332",
+      "use": "Nb1.33CTx vacancy-rich reference, Nb2CTx comparison, XPS fit tables, STEM vacancy analysis."
+    },
+    "Han2020SolidSolution": {
+      "title": "Tailoring Electronic and Optical Properties of MXenes through Forming Solid Solutions",
+      "doi": "10.1021/jacs.0c07395",
+      "use": "Ti-Nb/V solid-solution MXenes, Ti1.2Nb0.8CTx XPS spectra and metal ratios; EDS comparison."
+    },
+    "Pazniak2021": {
+      "title": "Ion Implantation as an Approach for Structural Modifications and Functionalization of Ti3C2Tx MXenes",
+      "doi": "10.1021/acsnano.0c06735",
+      "use": "Doping plus Ti/C damage; XPS depth profile cross-validated with ToF-SIMS, EDS and EELS."
+    },
+    "Alonzo2025": {
+      "title": "Etching-Chemistry-Driven Ruthenium Doping on Ti3C2Tx MXene for Optimizing Electrochemical Performance",
+      "doi": "10.1021/acsnanoscienceau.5c00136",
+      "use": "Vacancy-assisted dopant accommodation; XPS plus EPR/EDS; alternative Ti oxidation-state fit model."
+    },
+    "Liu2025": {
+      "title": "Defect passivation and transformation of Ti3C2Tx MXene hollow microsphere for superior electrochemical performance and sodium-ions storage",
+      "doi": "10.1016/j.jare.2025.06.003",
+      "use": "N/S/V co-doping with lattice/functional substitution and V capture at Ti vacancies; XPS plus DFT."
+    },
+    "Halim2016": {
+      "title": "X-ray photoelectron spectroscopy of select multi-layered transition metal carbides (MXenes)",
+      "doi": "10.1016/j.apsusc.2015.11.089",
+      "use": "Legacy termination quantification framework for Ti- and Nb-based MXenes."
+    }
+  },
+  "profiles": {
+    "ti3c2_brette": {
+      "material": "Ti3C2Tx",
+      "notes": [
+        "Primary interpretation follows Brette et al.; Ti 2p shifts should not be mapped one-to-one onto oxidation states.",
+        "O 1s near 531 eV can reflect disordered/mixed termination environments and termination vacancies; do not automatically call it OH.",
+        "F 1s is comparatively insensitive to local environment; a single MXene-F contribution can represent multiple local configurations."
+      ],
+      "fit_models": {
+        "Ti 2p": [
+          {
+            "name": "Ti_lowBE",
+            "kind": "doublet",
+            "center": 454.9,
+            "bounds": [
+              454.3,
+              455.4
+            ],
+            "fwhm": 1.0,
+            "fwhm_bounds": [
+              0.6,
+              1.8
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "Low-BE Ti-C / weakly or unfunctionalized surface Ti / volume Ti candidate; assignment is environment-dependent.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_midBE",
+            "kind": "doublet",
+            "center": 455.6,
+            "bounds": [
+              455.0,
+              456.2
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "Termination-sensitive Ti contribution; may include Ti environments associated with F/OH and O-affected volume Ti.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_highBE",
+            "kind": "doublet",
+            "center": 456.8,
+            "bounds": [
+              456.1,
+              457.5
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "split": 5.7,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "interpretation": "High-BE surface Ti strongly affected by O termination; not simply Ti3+ or Ti4+.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_oxide_oxyfluoride",
+            "kind": "doublet",
+            "center": 459.3,
+            "bounds": [
+              458.3,
+              460.1
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              1.0,
+              3.2
+            ],
+            "split": 5.6,
+            "ratio_primary_secondary": 2.0,
+            "role": "metal_oxide",
+            "interpretation": "Ti oxide/oxyfluoride contribution; excluded from MXene framework Ti by default.",
+            "source": "Brette2024"
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 281.85,
+            "bounds": [
+              281.3,
+              282.4
+            ],
+            "fwhm": 0.7,
+            "fwhm_bounds": [
+              0.4,
+              1.2
+            ],
+            "role": "framework_C",
+            "interpretation": "Carbide C in Ti3C2Tz; relatively insensitive to termination chemistry.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "C_contam_1",
+            "kind": "single",
+            "center": 284.3,
+            "bounds": [
+              283.6,
+              285.1
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          },
+          {
+            "name": "C_contam_2",
+            "kind": "single",
+            "center": 286.3,
+            "bounds": [
+              285.3,
+              287.4
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          },
+          {
+            "name": "C_contam_3",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              287.6,
+              290.2
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.8,
+              3.5
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "O_ideal",
+            "kind": "single",
+            "center": 529.8,
+            "bounds": [
+              529.2,
+              530.5
+            ],
+            "fwhm": 1.0,
+            "fwhm_bounds": [
+              0.6,
+              1.8
+            ],
+            "role": "termination_O",
+            "interpretation": "O termination on comparatively ordered/ideal Ti3C2Tz surface; oxide overlap must be checked against Ti 2p.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "O_disordered",
+            "kind": "single",
+            "center": 531.0,
+            "bounds": [
+              530.4,
+              531.7
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_O_disordered",
+            "interpretation": "O on disordered/mixed surfaces, including termination-vacancy environments; not automatically OH.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "OH_like",
+            "kind": "single",
+            "center": 532.2,
+            "bounds": [
+              531.6,
+              533.1
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_OH_like",
+            "interpretation": "OH-like termination contribution; cross-check with synthesis and other O components.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "O_adsorbate",
+            "kind": "single",
+            "center": 534.0,
+            "bounds": [
+              533.0,
+              536.2
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.2
+            ],
+            "role": "adsorbate",
+            "interpretation": "Adsorbed water/oxygen-containing residue; exclude from Tx by default.",
+            "source": "Brette2024"
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "F_MXene",
+            "kind": "single",
+            "center": 684.9,
+            "bounds": [
+              684.2,
+              685.7
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.7,
+              2.3
+            ],
+            "role": "termination_F",
+            "interpretation": "MXene-F termination candidate. One peak does not imply one microscopic F environment.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "F_residue",
+            "kind": "single",
+            "center": 686.5,
+            "bounds": [
+              685.7,
+              688.4
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "residue_F",
+            "interpretation": "Optional high-BE fluoride/fluoroaluminate residue; include only if statistically required and chemically supported.",
+            "source": "Halim2016"
+          }
+        ]
+      }
+    },
+    "nb2c_halim": {
+      "material": "Nb2CTx",
+      "notes": [
+        "Reference positions are from delaminated Nb2CTx and vacancy-rich Nb1.33CTx measured with Fermi-edge referencing.",
+        "The vacancy-rich sample was not fit with a unique vacancy-only Nb 3d component; vacancy interpretation should therefore be comparative and supported independently.",
+        "Nb 3d MXene and Nb2O5 doublets strongly overlap; use constraints and inspect residuals."
+      ],
+      "fit_models": {
+        "Nb 3d": [
+          {
+            "name": "Nb_MXene",
+            "kind": "doublet",
+            "center": 204.9,
+            "bounds": [
+              204.1,
+              205.6
+            ],
+            "fwhm": 1.35,
+            "fwhm_bounds": [
+              0.8,
+              2.2
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "framework_metal",
+            "interpretation": "C-Nb-Tx framework contribution.",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "Nb2O5",
+            "kind": "doublet",
+            "center": 207.45,
+            "bounds": [
+              206.7,
+              208.2
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_oxide",
+            "interpretation": "Nb(V) oxide contribution.",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "NbF5_like",
+            "kind": "doublet",
+            "center": 209.45,
+            "bounds": [
+              208.7,
+              210.3
+            ],
+            "fwhm": 1.2,
+            "fwhm_bounds": [
+              0.7,
+              2.4
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_fluoride",
+            "interpretation": "Nb fluoride-like residue; small component in the cited Nb samples.",
+            "source": "Halim2018Vacancy"
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 282.5,
+            "bounds": [
+              281.8,
+              283.1
+            ],
+            "fwhm": 0.85,
+            "fwhm_bounds": [
+              0.5,
+              1.4
+            ],
+            "role": "framework_C",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "C_C",
+            "kind": "single",
+            "center": 285.1,
+            "bounds": [
+              284.3,
+              285.6
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "CHx",
+            "kind": "single",
+            "center": 285.7,
+            "bounds": [
+              285.0,
+              286.3
+            ],
+            "fwhm": 1.3,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "C_O",
+            "kind": "single",
+            "center": 286.65,
+            "bounds": [
+              286.0,
+              287.4
+            ],
+            "fwhm": 1.75,
+            "fwhm_bounds": [
+              0.9,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "COO",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              288.0,
+              289.7
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Halim2018Vacancy"
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "Nb2O5_O",
+            "kind": "single",
+            "center": 530.45,
+            "bounds": [
+              529.8,
+              531.0
+            ],
+            "fwhm": 1.25,
+            "fwhm_bounds": [
+              0.7,
+              2.0
+            ],
+            "role": "oxide_O",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "Nb_O_term",
+            "kind": "single",
+            "center": 531.2,
+            "bounds": [
+              530.6,
+              531.8
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "role": "termination_O",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "Nb_OH_term",
+            "kind": "single",
+            "center": 532.4,
+            "bounds": [
+              531.7,
+              533.1
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "role": "termination_OH_like",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "H2O_ads",
+            "kind": "single",
+            "center": 533.5,
+            "bounds": [
+              532.9,
+              534.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "adsorbate",
+            "source": "Halim2018Vacancy"
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "Nb_F_term",
+            "kind": "single",
+            "center": 684.7,
+            "bounds": [
+              684.0,
+              685.5
+            ],
+            "fwhm": 1.45,
+            "fwhm_bounds": [
+              0.7,
+              2.3
+            ],
+            "role": "termination_F",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "NbF_residue",
+            "kind": "single",
+            "center": 686.2,
+            "bounds": [
+              685.6,
+              687.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.7,
+              2.8
+            ],
+            "role": "residue_F",
+            "source": "Halim2018Vacancy"
+          }
+        ]
+      }
+    },
+    "nbti_m2c_defect_aware": {
+      "material": "(Nb,Ti)2CTx",
+      "notes": [
+        "This is a conservative composite profile assembled from Ti-Nb solid-solution, Nb-vacancy, and Ti3C2 XPS references; no single cited paper uniquely resolves all variables in a defect-rich (Nb,Ti)2CTx sample.",
+        "Fit Ti 2p and Nb 3d independently, then integrate the interpretation across C 1s/O 1s/F 1s and composition data.",
+        "Do not force a vacancy-specific peak. Report selective Ti/Nb depletion and apparent M-site deficiency separately from absolute vacancy concentration.",
+        "For O 1s, mixed Ti/Nb oxides and terminations overlap. Component roles should remain provisional until Ti/Nb core-level consistency is checked."
+      ],
+      "fit_models": {
+        "Ti 2p": [
+          {
+            "name": "Ti_lowBE",
+            "kind": "doublet",
+            "center": 454.9,
+            "bounds": [
+              454.2,
+              455.5
+            ],
+            "fwhm": 1.1,
+            "fwhm_bounds": [
+              0.6,
+              2.0
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_midBE",
+            "kind": "doublet",
+            "center": 455.7,
+            "bounds": [
+              455.0,
+              456.4
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.5
+            ],
+            "split": 5.8,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_highBE",
+            "kind": "doublet",
+            "center": 456.8,
+            "bounds": [
+              456.1,
+              457.6
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.6
+            ],
+            "split": 5.7,
+            "ratio_primary_secondary": 2.0,
+            "role": "framework_metal",
+            "source": "Brette2024"
+          },
+          {
+            "name": "Ti_oxide",
+            "kind": "doublet",
+            "center": 459.2,
+            "bounds": [
+              458.2,
+              460.2
+            ],
+            "fwhm": 1.9,
+            "fwhm_bounds": [
+              1.0,
+              3.3
+            ],
+            "split": 5.6,
+            "ratio_primary_secondary": 2.0,
+            "role": "metal_oxide",
+            "source": "Brette2024"
+          }
+        ],
+        "Nb 3d": [
+          {
+            "name": "Nb_MXene",
+            "kind": "doublet",
+            "center": 204.9,
+            "bounds": [
+              204.0,
+              205.7
+            ],
+            "fwhm": 1.4,
+            "fwhm_bounds": [
+              0.8,
+              2.3
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "framework_metal",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "Nb2O5",
+            "kind": "doublet",
+            "center": 207.45,
+            "bounds": [
+              206.6,
+              208.3
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.8,
+              2.4
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_oxide",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "NbF5_like",
+            "kind": "doublet",
+            "center": 209.45,
+            "bounds": [
+              208.6,
+              210.4
+            ],
+            "fwhm": 1.3,
+            "fwhm_bounds": [
+              0.7,
+              2.5
+            ],
+            "split": 2.8,
+            "ratio_primary_secondary": 1.5,
+            "role": "metal_fluoride",
+            "source": "Halim2018Vacancy"
+          }
+        ],
+        "C 1s": [
+          {
+            "name": "C_MXene",
+            "kind": "single",
+            "center": 282.15,
+            "bounds": [
+              281.3,
+              283.0
+            ],
+            "fwhm": 0.9,
+            "fwhm_bounds": [
+              0.5,
+              1.5
+            ],
+            "role": "framework_C",
+            "interpretation": "Mixed-metal carbide C; Ti and Nb references bracket the expected range. Do not split without a reproducible shoulder and chemical justification.",
+            "source": "Han2020SolidSolution"
+          },
+          {
+            "name": "C_C",
+            "kind": "single",
+            "center": 284.5,
+            "bounds": [
+              283.7,
+              285.4
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          },
+          {
+            "name": "C_O",
+            "kind": "single",
+            "center": 286.3,
+            "bounds": [
+              285.4,
+              287.5
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          },
+          {
+            "name": "COO",
+            "kind": "single",
+            "center": 288.8,
+            "bounds": [
+              287.8,
+              290.1
+            ],
+            "fwhm": 2.0,
+            "fwhm_bounds": [
+              0.9,
+              3.4
+            ],
+            "role": "contaminant",
+            "source": "Brette2024"
+          }
+        ],
+        "O 1s": [
+          {
+            "name": "O_low",
+            "kind": "single",
+            "center": 530.1,
+            "bounds": [
+              529.3,
+              530.8
+            ],
+            "fwhm": 1.1,
+            "fwhm_bounds": [
+              0.6,
+              2.0
+            ],
+            "role": "O_unresolved_low",
+            "interpretation": "May include Ti/Nb oxide O and/or ordered O termination; classify only after metal-core cross-check.",
+            "source": "Brette2024"
+          },
+          {
+            "name": "O_mid",
+            "kind": "single",
+            "center": 531.1,
+            "bounds": [
+              530.5,
+              531.8
+            ],
+            "fwhm": 1.7,
+            "fwhm_bounds": [
+              0.8,
+              2.7
+            ],
+            "role": "O_unresolved_mid",
+            "interpretation": "May include Nb-O termination and disordered/mixed Ti-O termination environments.",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "OH_like",
+            "kind": "single",
+            "center": 532.4,
+            "bounds": [
+              531.7,
+              533.2
+            ],
+            "fwhm": 1.6,
+            "fwhm_bounds": [
+              0.8,
+              2.8
+            ],
+            "role": "termination_OH_like",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "O_adsorbate",
+            "kind": "single",
+            "center": 533.7,
+            "bounds": [
+              533.0,
+              535.5
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.2
+            ],
+            "role": "adsorbate",
+            "source": "Halim2018Vacancy"
+          }
+        ],
+        "F 1s": [
+          {
+            "name": "F_MXene",
+            "kind": "single",
+            "center": 684.8,
+            "bounds": [
+              684.0,
+              685.6
+            ],
+            "fwhm": 1.5,
+            "fwhm_bounds": [
+              0.7,
+              2.4
+            ],
+            "role": "termination_F",
+            "source": "Halim2018Vacancy"
+          },
+          {
+            "name": "F_residue",
+            "kind": "single",
+            "center": 686.2,
+            "bounds": [
+              685.6,
+              688.2
+            ],
+            "fwhm": 1.8,
+            "fwhm_bounds": [
+              0.8,
+              3.0
+            ],
+            "role": "residue_F",
+            "interpretation": "Metal fluoride / fluoroaluminate / salt residue candidate; do not count as Tx by default.",
+            "source": "Halim2018Vacancy"
+          }
+        ]
+      }
+    }
+  },
+  "legacy_excel": {
+    "name": "Legacy Ti3C2Tx surface-functional-group quantification model",
+    "rules": {
+      "framework_C": "C-TiTx only",
+      "framework_Ti": "Sum C-Ti+1-Tx, C-Ti+2-Tx, C-Ti+3-Tx; exclude TiO2-xF2x(Ti)",
+      "O_termination": "low-BE O + optional high-BE O component",
+      "F_termination": "F0 by default; F1/F2 optional",
+      "F_oxide_correction": "F_corr = max(0, F_raw - O_oxide * factor), legacy factor 0.6667",
+      "Cl_termination": "optional C-Ti-Cl",
+      "normalization": "Scale by 2 / framework_C, then compare Ti_norm with 3",
+      "QC": "Ti_norm within 3 +/- 0.5; corrected z_total between 1 and 3"
+    },
+    "default_rsf": {
+      "C 1s": 0.314,
+      "Ti 2p": 2.077,
+      "O 1s": 0.733,
+      "F 1s": 1.0,
+      "Cl 2p": 0.954
+    }
+  },
+  "solid_solution_reference": {
+    "Ti2-yNbyCTx": {
+      "source": "Han2020SolidSolution",
+      "note": "Published XPS stoichiometries were normalized using one theoretical metal amount; useful for composition trends but not as an absolute vacancy calibration.",
+      "xps_atomic_percent": [
+        {
+          "y": 0.4,
+          "Ti": 18.46,
+          "Nb": 5.43,
+          "C": 12.91,
+          "O": 21.18,
+          "F": 6.25
+        },
+        {
+          "y": 0.8,
+          "Ti": 13.7,
+          "Nb": 11.21,
+          "C": 12.78,
+          "O": 27.67,
+          "F": 6.47
+        },
+        {
+          "y": 1.2,
+          "Ti": 9.78,
+          "Nb": 15.23,
+          "C": 16.05,
+          "O": 17.29,
+          "F": 4.62
+        },
+        {
+          "y": 1.6,
+          "Ti": 4.51,
+          "Nb": 14.48,
+          "C": 12.35,
+          "O": 18.77,
+          "F": 11.57
+        }
+      ]
+    }
+  },
+  "validation_defaults": {
+    "delta_be_pass_eV": 0.3,
+    "delta_be_review_eV": 0.5,
+    "fwhm_rel_pass": 0.25,
+    "fwhm_rel_review": 0.5,
+    "area_fraction_abs_pass": 0.1,
+    "area_fraction_abs_review": 0.2,
+    "note": "Thresholds are conservative QC defaults, not literature constants; expose them to the user. Brette et al. estimate ~0.5 eV numerical uncertainty for their DFT BE calculations and note experimental resolutions around ~0.3 eV in cited MXene work."
+  }
+}

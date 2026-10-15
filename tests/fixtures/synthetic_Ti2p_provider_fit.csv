@@ -1,0 +1,5 @@
+core_level,component,BE,FWHM,area
+Ti 2p,Ti_lowBE,454.8765,1.1101,4205.0616
+Ti 2p,Ti_midBE,455.5656,1.1956,781.2304
+Ti 2p,Ti_highBE,456.9302,1.9369,3739.1242
+Ti 2p,Ti_oxide,459.0544,2.0136,1206.8164
