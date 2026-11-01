@@ -203,3 +203,35 @@ a sub-stoichiometric NbC component 0.46 eV below NbC — or an Nb–Al intermeta
 Sasaki MAX batches, but the XRD↔XPS specimen link for sample 1 is not established and no bcc Nb was reported there).
 Orthogonal support (XRD / SEM-EDS of the same specimen, or a Nb-metal reference measured on the same instrument) is
 needed before any assignment. The feature stays a calibration observation outside the KB.
+
+## App 1.6.0 — reproducibility, uncertainty and cross-sample tooling (KB unchanged at 1.5.0, 2026-11-02)
+
+No scientific change: KB file byte-identical (1.5.0); Nb_suboxide_like unvalidated / non-framework; δ provisional; D4
+calibration-sensitive; sample-1 low-BE Nb = `unresolved_low_BE_Nb` observation; MXene and MAX profiles unchanged.
+Real-data regression: all 46 Python fits (5 samples × modelled cores × Shirley/linear) byte-identical to the
+pre-change baseline; existing quantification values identical (only new `*_alt` fields added).
+
+| Feature | Module / UI |
+|---|---|
+| Identifiability / fit-confidence (identifiable / weakly identifiable / boundary-limited / non-identifiable; statistical only) | `identifiability.py`; tab 3 table; full parameter stderr/correlations added to `FitResult` (values unchanged) |
+| Fit-sensitivity comparison (Shirley/linear, model-window crop, D4 grid for Nb 3d only), ΔAIC/ΔBIC only where comparable, Δ area fraction, Δ M_norm/δ, `model-sensitive` flag (D4 materiality 0.05) | `sensitivity.py`, `calibration.py` (single source for D4 grid/criteria; used by the D4 tool); tab 3 expander |
+| Provisional quantities: nominal (candidate excluded) vs alternative (candidate as framework), never averaged, provisional flag + reasons; Ti/(Ti+Nb), M_norm, δ, z_O/z_F/z_Cl | `quantification.provisional_report`; tab 2; per-element `*_norm_alt`, `*_observed_fraction_alt` |
+| Cross-sample comparison (BE, area fraction, O 1s / F 1s fractions, survey at.% incl. Al/Cl/S/Li, provisional quantities, unresolved components; grouping by phase / composition / treatment) | `dataset.py`; tab 6 (provider report + optional raw multi files + optional metadata) |
+| Provenance vocabulary on every exported value; KB load refuses uncited sources as starting values of non-candidates or as reference entries | `provenance.py`; KB guard in `knowledge_base.py`; project JSON / reports |
+| Sample metadata schema (dataset level, not KB) + template + example for the next five samples | `sample_metadata.py`, `templates/` |
+| Cl 2p / S 2p / Li 1s: importable, displayable, exportable, provider pairs kept; `no validated KB model`; fitting with an unrelated model refused (`spectrum_core_level`) | `calibration.UNSUPPORTED_REGIONS`; tab 3; S 2p requested after H2SO4 treatment |
+| Calibration summary (dataset, KB version, git commit, fit models, provider-vs-Python QC, warnings, identifiability, model-sensitive quantities, unresolved components, user overrides, references) with `fit succeeded` vs `chemical interpretation validated` (always False) | `reporting.calibration_summary(_html)`; tab 5 |
+
+### Observations from running the new layer on the Sasaki set (recorded; nothing changed)
+- 78 fitted components: 44 non-identifiable, 15 weakly identifiable, 13 identifiable, 6 boundary-limited.
+  Nb_MXene ↔ Nb_suboxide_like strongly anticorrelated (r −0.93 sample 4, −0.98 sample 5); sample 5 Ti 2p all
+  non-identifiable (Nb 3s overlap warning retained).
+- **Open item O1:** in the MAX profiles Nb_MAX and the Nb_MAX_2nd line-shape surrogate are not separately identifiable
+  (|r| 0.97–0.99). Both carry the framework role, so only their sum enters M_norm; individual areas must not be
+  reported.
+- **Open item O2:** provider-fraction vs Python-fraction decompositions give different δ (e.g. Nb2CTx 0.46 vs 0.65–0.81);
+  the cross-sample view uses provider fractions (provenance shown); Python refits are shown separately.
+- **Open item O3:** sample 2 (Nb0.9Ti0.1)2AlC: provider fitted Ti 2p3/2 only and notes the Ti at.% is underestimated;
+  Ti/(Ti+Nb) for this sample is low-biased (now listed in the provisional reasons).
+- **Open item O4:** sample 1 MAX M_norm = 1.00 (provider fractions) is a numerical coincidence of the provider Nb and C
+  fractions; MAX quantities are not interpreted.

@@ -137,7 +137,7 @@ def parse_curve_fit_summaries(text: str, origin: str = "") -> pd.DataFrame:
             "region": region, "core_level": phi_region_to_core(region) if region else None,
             "band": band, "provider_label": f"{region} band {band}",
             **{k: rec.get(k) for k in ("BE", "pos_sep", "B_FWHM", "FWHM", "height", "gauss_pct", "area", "area_pct")},
-            "chi2": rec.get("chi2"),
+            "chi2": rec.get("chi2"), "provenance": "provider_raw_fit",
         })
     df = pd.DataFrame(rows)
     if df.empty:
@@ -226,6 +226,7 @@ def pair_spin_orbit(bands: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
             b.loc[i, ["doublet_id", "line"]] = [did, "unpaired"]
             out.append(_row(r, None, did, "unpaired", conv_unpaired, None, core, ratio))
     d = pd.DataFrame(out).sort_values(["summary_index", "BE"]).reset_index(drop=True)
+    d["provenance"] = np.where(d["pairing"] == "paired", "provider_paired_doublet", "provider_raw_fit")
     return d, b
 
 

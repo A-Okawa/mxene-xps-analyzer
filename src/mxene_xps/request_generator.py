@@ -39,6 +39,9 @@ def required_regions(setup: SampleSetup) -> list[dict]:
     if setup.a_element:
         a_core = A_SITE_TO_CORE.get(setup.a_element, f"{setup.a_element} core level (select manually)")
         regions.append({"region": a_core, "reason": f"Residual A-site element ({setup.a_element}) / reaction products", "trigger": "A-site element"})
+    if "h2so4" in et or "sulf" in et:
+        regions.append({"region": "S 2p", "reason": "S-containing residue after H2SO4 treatment (no validated KB model yet)",
+                        "trigger": "H2SO4 treatment"})
     if "lif" in et:
         regions.append({"region": "Li 1s", "reason": "Li-containing residue / intercalant", "trigger": "LiF"})
     if "naf" in et:

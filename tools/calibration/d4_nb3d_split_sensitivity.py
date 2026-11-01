@@ -34,8 +34,8 @@ from mxene_xps.io import parse_phi_multiregion, parse_two_column  # noqa: E402
 from mxene_xps.knowledge_base import default_kb  # noqa: E402
 from mxene_xps.multipak import pair_spin_orbit, read_multipak_provider  # noqa: E402
 
-GRID = (2.70, 2.72, 2.75, 2.80)
-AREA_TOL, DELTA_TOL = 0.05, 0.05
+from mxene_xps.calibration import D4_NB3D_SPLIT_GRID as GRID  # noqa: E402  (single source)
+from mxene_xps.calibration import MATERIAL_AREA_FRACTION_SPAN as AREA_TOL, MATERIAL_DELTA_SPAN as DELTA_TOL  # noqa: E402
 SAMPLES = {
     # sample id: (profile, data_file stem, nominal M, provider at.% Nb, C, Ti)
     "4": dict(profile="nb2c_halim", stem="sasaki108", label="4_Nb2CTx", at={"Nb": 21.37, "C": 32.17, "Ti": 0.0}),

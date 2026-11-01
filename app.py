@@ -33,6 +33,14 @@ from mxene_xps.quantification import (LEGACY_CONTROLS_DEFAULT, LEGACY_LABEL, Qua
                                       legacy_quantify_table, legacy_template, quantify_table, role_reclassifications)
 from mxene_xps.reporting import evidence_summary, html_report, metadata_warnings, project_dict  # noqa: E402
 from mxene_xps.request_generator import generate_request, make_peak_template, metal_core  # noqa: E402
+from mxene_xps import dataset as ds  # noqa: E402
+from mxene_xps import sample_metadata as smeta  # noqa: E402
+from mxene_xps.calibration import NO_MODEL_TEXT, UNSUPPORTED_REGIONS  # noqa: E402
+from mxene_xps.identifiability import assess as assess_identifiability, warnings_from as ident_warnings  # noqa: E402
+from mxene_xps.provenance import PROVENANCE, start_value_provenance  # noqa: E402
+from mxene_xps.quantification import provisional_report  # noqa: E402
+from mxene_xps.reporting import calibration_summary, calibration_summary_html, git_commit  # noqa: E402
+from mxene_xps import sensitivity as sens  # noqa: E402
 from mxene_xps.validation import (IDENTIFIABILITY_WARNING, compare_components, compare_grouped,  # noqa: E402
                                   prepare_vendor, role_disagreements, summarize)
 
@@ -90,7 +98,7 @@ with st.sidebar:
     sample_name = st.text_input("Sample name", "NbTi_MXene_01" if structure == "(Nb,Ti)2CTx" else
                                 ("MAX_01" if phase == "MAX" else "MXene_01"))
     etchants = st.multiselect("Etching / processing chemistry",
-                              ["HF", "LiF/HCl", "NaF/HCl", "KF/HCl", "NH4F/HCl", "TBAOH", "molten chloride", "other"],
+                              ["HF", "LiF/HCl", "NaF/HCl", "KF/HCl", "NH4F/HCl", "TBAOH", "molten chloride", "H2SO4 (post-treatment)", "other"],
                               default=["LiF/HCl"] if structure == "(Nb,Ti)2CTx" else [])
     a_element = st.text_input("A-site element to check", "Al")
     expected_defects = st.checkbox("M-site vacancies / selective dissolution expected", value=structure == "(Nb,Ti)2CTx")
@@ -150,9 +158,9 @@ if ctx_warn:
         for w in ctx_warn:
             st.warning(w)
 
-tab_req, tab_q, tab_v, tab_kb, tab_rep = st.tabs(
+tab_req, tab_q, tab_v, tab_kb, tab_rep, tab_x = st.tabs(
     ["1. Request generator", "2. Peak table & quantification", "3. Provider ↔ Python validation",
-     "4. Knowledge base", "5. Report & export"])
+     "4. Knowledge base", "5. Report & export", "6. Cross-sample comparison"])
 
 # ------------------------------------------------------------------ 1 request
 with tab_req:
@@ -286,6 +294,18 @@ with tab_q:
                 .reset_index().rename(columns={"index": "quantity"}))
         st.dataframe(show, hide_index=True, height=min(900, 36 * (len(show) + 1)))
         st.download_button("Download quantification results (.csv)", csv_bytes(res), file_name=f"{sample_name}_quantification.csv")
+        if q["model"] == "role-based":
+            st.markdown("**Nominal vs alternative (provisional quantities)** — default excludes the calibration candidate "
+                        "from the framework; the alternative counts it. The two are never averaged.")
+            qopt = QuantOptions(**q["options"])
+            prov_tabs = []
+            for rec in res.to_dict("records"):
+                pr = provisional_report(rec, qopt)
+                pr.insert(0, "sample", rec["sample"])
+                prov_tabs.append(pr)
+            prov_df = pd.concat(prov_tabs, ignore_index=True) if prov_tabs else pd.DataFrame()
+            st.dataframe(prov_df, hide_index=True)
+            q["provisional"] = prov_df
         for s, ws in q["warnings"].items():
             for w in ws:
                 st.warning(f"{s}: {w}")
@@ -309,9 +329,13 @@ with tab_v:
     st.subheader("Independent Python refit")
     st.caption("The Python fit is an independent QC fit, not ground truth. Pseudo-Voigt components with fixed spin-orbit "
                "split and area ratio; Shirley background is an uncalibrated approximation.")
-    cores = list(models)
-    core = st.selectbox("Core level", cores)
-    kb_comps = models[core]
+    cores = list(models) + [r for r in UNSUPPORTED_REGIONS if r not in models]
+    core = st.selectbox("Core level", cores, format_func=lambda c: c if c in models else f"{c} ({NO_MODEL_TEXT})")
+    kb_comps = models.get(core, [])
+    unsupported = not kb_comps
+    if unsupported:
+        st.error(f"{core}: {NO_MODEL_TEXT}. The region can be imported, displayed and exported, and provider peaks can be "
+                 f"imported, but no Python fit is run. {UNSUPPORTED_REGIONS.get(core, '')}")
     for w in profile.get("core_level_warnings", {}).get(core, []):
         st.warning(w)
     c1, c2 = st.columns(2)
@@ -329,13 +353,13 @@ with tab_v:
                                     key=f"region_{raw_file.name}_{core}")
                 region_sp = regs[pick]
                 if region_sp.core_level != core:
-                    st.warning(f"Selected region {region_sp.region} is not {core}.")
+                    st.error(f"Selected region {region_sp.region} is not {core}; fitting it with the {core} model is refused.")
             except Exception as e:
                 st.error(f"Multi-region import failed: {e}")
         restrict = st.checkbox("Restrict fit BE window", value=False,
                                help="E.g. exclude a neighbouring core level. Recorded in the fit settings.")
         win = None
-        if restrict:
+        if restrict and kb_comps:
             w1, w2 = st.columns(2)
             win = (w1.number_input("low BE (eV)", value=float(min(x.bounds[0] for x in models[core]) - 3.0), format="%.2f"),
                    w2.number_input("high BE (eV)", value=float(max(x.bounds[1] + (x.split or 0) for x in models[core]) + 3.0), format="%.2f"))
@@ -367,38 +391,42 @@ with tab_v:
         }
         corr_th = st.number_input("Area-correlation flag |r| ≥ (identifiability diagnostic)", 0.0, 1.0, 0.8, 0.05)
         st.caption(vd.get("note", ""))
-    st.markdown("**Active starting model** — starting values and fitting windows are editable implementation "
-                "bounds; literature reference values are shown separately and are never used as constraints.")
+    if kb_comps:
+        st.markdown("**Active starting model** — starting values and fitting windows are editable implementation "
+                    "bounds; literature reference values are shown separately and are never used as constraints.")
 
-    model_df = pd.DataFrame([{"name": x.name, "kind": x.kind, "role": x.role, "status": x.assignment_status,
-                              "center": x.center, "BE_low": x.bounds[0], "BE_high": x.bounds[1],
-                              "FWHM": x.fwhm, "FWHM_low": x.fwhm_bounds[0], "FWHM_high": x.fwhm_bounds[1],
-                              "ΔSO": x.split, "ratio": x.ratio_primary_secondary, "ΔSO basis": x.split_basis or "",
-                              "calibration": _cal_text(x),
-                              "literature reference (display only)": x.literature_summary(),
-                              "transferred reference (display only)": x.transferred_summary(),
-                              "provider observation (display only)": x.observation_summary(),
-                              "basis": x.source_type or "", "source": x.source,
-                              "DOI": KB.references[x.source].get("doi")} for x in kb_comps])
-    ver = st.session_state.setdefault("model_reset", 0)
-    edited_model = st.data_editor(
-        model_df, hide_index=True, key=f"model_{profile_key}_{core}_{ver}",
-        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "ΔSO basis", "calibration", "literature reference (display only)",
-                  "transferred reference (display only)", "provider observation (display only)", "basis", "source", "DOI"])
-    if st.button("Reset model to knowledge-base values"):
-        st.session_state["model_reset"] = ver + 1
-        st.rerun()
-    overrides = {r["name"]: {"center": r["center"], "bounds": (r["BE_low"], r["BE_high"]), "fwhm": r["FWHM"],
-                             "fwhm_bounds": (r["FWHM_low"], r["FWHM_high"])} for r in edited_model.to_dict("records")}
-    try:
-        comps, model_log = with_overrides(kb_comps, overrides)
-    except ValueError as e:
-        st.error(f"Invalid model edit: {e}")
-        comps, model_log = kb_comps, []
-    if model_log:
-        st.warning(f"{len(model_log)} starting value/window edit(s) relative to KB v{KB.version}; recorded in the "
-                   "fit settings and the project export.")
-        st.dataframe(pd.DataFrame(model_log).astype(str), hide_index=True)
+        model_df = pd.DataFrame([{"name": x.name, "kind": x.kind, "role": x.role, "status": x.assignment_status,
+                                  "center": x.center, "BE_low": x.bounds[0], "BE_high": x.bounds[1],
+                                  "FWHM": x.fwhm, "FWHM_low": x.fwhm_bounds[0], "FWHM_high": x.fwhm_bounds[1],
+                                  "ΔSO": x.split, "ratio": x.ratio_primary_secondary, "ΔSO basis": x.split_basis or "",
+                                  "calibration": _cal_text(x),
+                                  "literature reference (display only)": x.literature_summary(),
+                                  "transferred reference (display only)": x.transferred_summary(),
+                                  "provider observation (display only)": x.observation_summary(),
+                                  "basis": x.source_type or "", "start provenance": start_value_provenance(x), "source": x.source,
+                                  "DOI": KB.references[x.source].get("doi")} for x in kb_comps])
+        ver = st.session_state.setdefault("model_reset", 0)
+        edited_model = st.data_editor(
+            model_df, hide_index=True, key=f"model_{profile_key}_{core}_{ver}",
+            disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "ΔSO basis", "calibration", "literature reference (display only)",
+                      "transferred reference (display only)", "provider observation (display only)", "basis", "start provenance", "source", "DOI"])
+        if st.button("Reset model to knowledge-base values"):
+            st.session_state["model_reset"] = ver + 1
+            st.rerun()
+        overrides = {r["name"]: {"center": r["center"], "bounds": (r["BE_low"], r["BE_high"]), "fwhm": r["FWHM"],
+                                 "fwhm_bounds": (r["FWHM_low"], r["FWHM_high"])} for r in edited_model.to_dict("records")}
+        try:
+            comps, model_log = with_overrides(kb_comps, overrides)
+        except ValueError as e:
+            st.error(f"Invalid model edit: {e}")
+            comps, model_log = kb_comps, []
+        if model_log:
+            st.warning(f"{len(model_log)} starting value/window edit(s) relative to KB v{KB.version}; recorded in the "
+                       "fit settings and the project export.")
+            st.dataframe(pd.DataFrame(model_log).astype(str), hide_index=True)
+
+    else:
+        comps, model_log = [], []
 
     mp_state = None
     if vendor_file is not None and prov_fmt != "Generic component CSV":
@@ -455,7 +483,27 @@ with tab_v:
         except Exception as e:
             st.error(f"MultiPak import failed: {e}")
 
-    if st.button("Run Python fit", type="primary"):
+    if unsupported:
+        sp_show = region_sp if region_sp is not None else None
+        if sp_show is None and raw_file is not None and importer in SPECTRUM_IMPORTERS:
+            try:
+                sp_show = SPECTRUM_IMPORTERS[importer](raw_file.getvalue())
+            except Exception as e:
+                st.error(f"Import failed: {e}")
+        if sp_show is not None:
+            fig, ax = plt.subplots(figsize=(8, 3.5))
+            ax.plot(sp_show.be, sp_show.intensity, ".-", ms=2, lw=0.6, color="0.3")
+            ax.invert_xaxis(); ax.set_xlabel("Binding energy (eV)"); ax.set_ylabel("Intensity")
+            ax.set_title(f"{core} — imported spectrum ({NO_MODEL_TEXT})")
+            st.pyplot(fig); plt.close(fig)
+            st.download_button("Imported spectrum .csv", csv_bytes(pd.DataFrame({"BE": sp_show.be, "intensity": sp_show.intensity,
+                                                                                 "provenance": "raw_measurement"})),
+                               file_name=f"{sample_name}_{core.replace(' ', '')}_raw.csv")
+        if mp_state is not None:
+            st.download_button("Provider peaks (paired) .csv", csv_bytes(mp_state["mapping"].assign(provenance="provider_paired_doublet")),
+                               file_name=f"{sample_name}_{core.replace(' ', '')}_provider_peaks.csv")
+
+    if st.button("Run Python fit", type="primary", disabled=unsupported):
         try:
             if region_sp is not None:
                 sp = region_sp
@@ -469,8 +517,11 @@ with tab_v:
                 raise ValueError("Upload a raw spectrum or tick the demo option.")
             if win is not None:
                 sp = crop(sp, *win)
-            fr = fit_core_level(sp.be, sp.intensity, comps, background=bg, endpoint_avg=int(endavg), corr_threshold=corr_th)
+            fr = fit_core_level(sp.be, sp.intensity, comps, background=bg, endpoint_avg=int(endavg), corr_threshold=corr_th,
+                                spectrum_core_level=sp.core_level)
             st.session_state.setdefault("fits", {})[f"{profile_key} | {core}"] = {"fit": fr, "import_notes": sp.notes,
+                                                             "core": core, "spectrum": (sp.be, sp.intensity, sp.core_level),
+                                                             "ident": assess_identifiability(fr),
                                                              "settings": {"background": bg, "endpoint_avg": int(endavg),
                                                                           "profile": profile_key, "kb_version": KB.version,
                                                                           "model_overrides": model_log,
@@ -491,7 +542,16 @@ with tab_v:
         k3.metric("RMSE", f"{m['RMSE']:.4g}")
         k4.metric("AIC", f"{m['AIC']:.1f}")
         k5.metric("BIC", f"{m['BIC']:.1f}")
-        st.dataframe(style_status(fr.components), hide_index=True)
+        st.dataframe(style_status(fr.components.assign(provenance="python_fit")), hide_index=True)
+        ident = fitstate.get("ident")
+        if ident is not None:
+            st.markdown("**Identifiability / fit confidence** (statistical status only — not a chemical assignment)")
+            st.dataframe(ident.style.format({c: "{:.4g}" for c in ident.columns if pd.api.types.is_float_dtype(ident[c])}, na_rep="")
+                         .map(lambda v: {"identifiable": "background-color:#d8f0d8", "weakly identifiable": "background-color:#fff0c2",
+                                         "boundary-limited": "background-color:#fde2c2", "non-identifiable": "background-color:#f7d0d0"}.get(v, ""),
+                              subset=["status"]), hide_index=True)
+            for w in ident_warnings(ident):
+                st.caption("• " + w)
         if fr.diagnostics:
             st.warning("Fit diagnostics:\n\n" + "\n".join(f"- {d}" for d in fr.diagnostics))
         cand = [x for x in comps if x.calibration_candidate and not x.validated]
@@ -522,6 +582,41 @@ with tab_v:
         if fr.area_correlation is not None:
             with st.expander("Area-parameter correlation matrix"):
                 st.dataframe(fr.area_correlation.style.format("{:+.2f}"))
+
+        with st.expander("Fit-sensitivity comparison (predefined alternatives; no automatic 'best chemistry')"):
+            be_s, y_s, core_s = fitstate["spectrum"]
+            alts = sens.standard_alternatives(core, comps, be_s)
+            st.caption("Alternatives: " + "; ".join(f"{a.label} [{a.basis}]" for a in alts)
+                       + ". ΔAIC/ΔBIC are shown only where the data points are identical to the nominal fit.")
+            qd = st.session_state.get("quant")
+            derived_fn, dsample = None, None
+            if qd and qd.get("model") == "role-based" and "core_level" in qd["table"]:
+                tab = qd["table"]
+                samples_q = sorted(set(tab.loc[tab["core_level"] == core, "sample"].astype(str)))
+                if samples_q:
+                    dsample = st.selectbox("Derived quantities from the quantification table of sample", samples_q, key=f"sens_s_{core}")
+                    qopt = QuantOptions(**qd["options"])
+                    derived_fn = sens.derived_from_fractions(tab, dsample, core,
+                                                             lambda t: quantify_table(t, qd["rsf"], qopt)[0].iloc[0].to_dict())
+            if st.button("Run fitting alternatives", key=f"sens_btn_{core}"):
+                with st.spinner("Fitting alternatives…"):
+                    sres = sens.run(be_s, y_s, comps, alts, endpoint_avg=int(endavg), derived_fn=derived_fn, spectrum_core_level=core_s)
+                fitstate["sensitivity"] = sres
+                fitstate["ident"] = assess_identifiability(fr, alt_spans=sres.component_spans())
+                st.rerun()
+            sres = fitstate.get("sensitivity")
+            if sres is not None:
+                st.dataframe(sres.table, hide_index=True)
+                st.markdown("Area fraction by alternative")
+                st.dataframe(sres.fractions.style.format("{:.3f}"))
+                if len(sres.derived):
+                    st.markdown(f"Derived quantities (sample {dsample})")
+                    st.dataframe(sres.derived)
+                st.markdown("Spans across alternatives (≥ 0.05 → **model-sensitive**, D4 materiality criteria)")
+                st.dataframe(sres.spans, hide_index=True)
+                ms = sres.spans[sres.spans["model_sensitive"]]["quantity"].tolist() if len(sres.spans) else []
+                if ms:
+                    st.warning("model-sensitive: " + ", ".join(ms))
 
         if vendor_file is not None and (prov_fmt == "Generic component CSV" or mp_state is not None):
             try:
@@ -615,11 +710,21 @@ with tab_rep:
                         q.get("reclass") if q else None)
     def _rec(x):
         return None if x is None else json.loads(x.to_json(orient="records"))
-    proj["fits"] = {k: {"metrics": v["fit"].metrics, "components": json.loads(v["fit"].components.to_json(orient="records")),
+    proj["provenance_vocabulary"] = list(PROVENANCE)
+    proj["fits"] = {k: {"metrics": v["fit"].metrics,
+                        "components": json.loads(v["fit"].components.assign(provenance="python_fit").to_json(orient="records")),
+                        "identifiability": _rec(v.get("ident")),
+                        "sensitivity_spans": _rec(v["sensitivity"].spans) if v.get("sensitivity") is not None else None,
+                        "model_overrides": [{**o, "provenance": "user_override"} for o in v["settings"].get("model_overrides") or []],
                         "diagnostics": v["fit"].diagnostics, "summary": v.get("summary"),
                         "provider_raw_bands": _rec(v.get("provider_raw_bands")),
                         "provider_mapping": _rec(v.get("provider_mapping")),
-                        "provider_mapping_log": v.get("provider_mapping_log")} for k, v in fits.items()}
+                        "provider_mapping_log": [{**o, "provenance": "user_override"} for o in v.get("provider_mapping_log") or []]}
+                    for k, v in fits.items()}
+    if q and q.get("provisional") is not None:
+        proj["provisional_quantities"] = _rec(q["provisional"])
+    if q and q.get("reclass") is not None and len(q["reclass"]):
+        proj["role_reclassifications"] = _rec(q["reclass"].assign(provenance="user_override"))
     sections: list = [("Sample setup", pd.DataFrame([{k: str(v) for k, v in proj["sample_setup"].items()}]).T.reset_index()
                        .rename(columns={"index": "field", 0: "value"})),
                       ("Measurement metadata", pd.DataFrame([{k: str(v) for k, v in md.to_dict().items()}]).T.reset_index()
@@ -627,12 +732,16 @@ with tab_rep:
                       ("Measurement-context warnings", ctx_warn),
                       ("Orthogonal evidence", [ev_status] + ev_lines)]
     if q:
+        if q.get("provisional") is not None:
+            sections.append(("Provisional quantities (nominal vs alternative; never averaged)", q["provisional"]))
         sections += [("Quantification results", q["results"].set_index("sample").T.reset_index()),
                      ("Quantification warnings", [f"{s}: {w}" for s, ws in q["warnings"].items() for w in ws])]
         if q.get("reclass") is not None and len(q["reclass"]):
             sections.append(("User role reclassifications", q["reclass"]))
     for k, v in fits.items():
         sections += [(f"Python fit – {k}", v["fit"].components), (f"Fit diagnostics – {k}", v["fit"].diagnostics)]
+        if v.get("ident") is not None:
+            sections.append((f"Identifiability – {k} (statistical status only)", v["ident"]))
         if v.get("provider_raw_bands") is not None:
             sections += [(f"Provider raw fitted peaks – {k}", v["provider_raw_bands"]),
                          (f"Provider pairing / tentative KB mapping – {k}", v["provider_mapping"])]
@@ -647,3 +756,112 @@ with tab_rep:
                        file_name=f"{sample_name}_xps_report.html", mime="text/html")
     c3.download_button("knowledge_base.json", KB.to_json().encode("utf-8"), file_name="knowledge_base.json")
     st.caption("Exports are generated in the browser session only. Unpublished data are never written to the repository.")
+
+    st.subheader("Calibration summary report")
+    st.caption("Distinguishes 'fit succeeded' from 'chemical interpretation validated' (the latter is never claimed by the app).")
+    ds_name = st.text_input("Dataset name", value=st.session_state.get("xs_name", sample_name), key="cal_ds_name")
+    overrides_all = {"role_reclassifications": json.loads(q["reclass"].to_json(orient="records")) if q and q.get("reclass") is not None and len(q["reclass"]) else []}
+    cal = calibration_summary(ds_name, KB, git_commit(ROOT), fits, samples=st.session_state.get("xs_samples"),
+                              sensitivity={k: v.get("sensitivity") for k, v in fits.items()}, overrides=overrides_all)
+    cal["provenance_vocabulary"] = list(PROVENANCE)
+    r1, r2 = st.columns(2)
+    r1.download_button("Calibration summary (.json)", json.dumps(cal, indent=2, ensure_ascii=False, default=str).encode("utf-8"),
+                       file_name=f"{ds_name}_calibration_summary.json", mime="application/json")
+    r2.download_button("Calibration summary (.html)", calibration_summary_html(cal).encode("utf-8"),
+                       file_name=f"{ds_name}_calibration_summary.html", mime="text/html")
+    st.caption(f"KB v{KB.version} · git {cal['git_commit'] or 'unavailable'}")
+
+# ------------------------------------------------------------------ 6 cross-sample
+with tab_x:
+    st.subheader("Cross-sample comparison")
+    st.caption("Side-by-side view of provider fits (paired, tentatively mapped to each sample's KB model), survey at.% and "
+               "provisional quantities. Nothing here changes or adds a chemical interpretation; every value carries its "
+               "provenance.")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        rep_file = st.file_uploader("Provider report (MultiPak .pptx or Curve Fit Summary text)", type=["pptx", "txt", "csv"], key="xs_rep")
+    with c2:
+        raw_files = st.file_uploader("Optional raw multi-region files (*_multi.csv) for Python refits", type=["csv", "txt"],
+                                     accept_multiple_files=True, key="xs_raw")
+    with c3:
+        meta_file = st.file_uploader("Optional sample metadata (.csv)", type=["csv"], key="xs_meta")
+        st.download_button("Metadata template (.csv)", csv_bytes(smeta.template()), file_name="sample_metadata_template.csv")
+        ex = ROOT / "templates" / "next_dataset_example.csv"
+        if ex.exists():
+            st.download_button("Example: next five-sample dataset (.csv)", ex.read_bytes(), file_name="next_dataset_example.csv")
+    st.session_state["xs_name"] = st.text_input("Dataset name", value=st.session_state.get("xs_name", "dataset"), key="xs_name_in")
+    if rep_file is not None:
+        try:
+            meta_df = smeta.read(meta_file.getvalue()) if meta_file is not None else None
+            bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), rep_file.name)
+            files = list(dict.fromkeys(bands_x["data_file"]))
+            raw_by_stem = {}
+            for f in raw_files or []:
+                stem = f.name.split("_", 1)[0]
+                try:
+                    raw_by_stem[stem] = MULTIREGION_IMPORTERS[list(MULTIREGION_IMPORTERS)[0]](f.getvalue())
+                except Exception as e:
+                    st.warning(f"{f.name}: {e}")
+            samples_x = []
+            for f in files:
+                stem = str(f).rsplit(".", 1)[0]
+                meta_row = None
+                if meta_df is not None:
+                    hit = meta_df[(meta_df["provider_file"] == stem) | (meta_df["sample_id"] == str(
+                        bands_x.loc[bands_x["data_file"] == f, "comment"].iloc[0]))]
+                    meta_row = hit.iloc[0].to_dict() if len(hit) else None
+                samples_x.append(ds.build_sample(f, bands_x, act_x, KB, meta=meta_row, raw_regions=raw_by_stem.get(stem)))
+            st.session_state["xs_samples"] = samples_x
+        except Exception as e:
+            st.error(f"Dataset assembly failed: {e}")
+            samples_x = []
+    else:
+        samples_x = st.session_state.get("xs_samples") or []
+    if samples_x:
+        info = pd.DataFrame([{"sample": s.sample, "data_file": s.data_file, "phase": s.meta.get("phase"),
+                              "composition": s.meta.get("nominal_composition"), "treatment": s.meta.get("treatment"),
+                              "treatment_temperature_C": s.meta.get("treatment_temperature_C"), "structure": s.structure,
+                              "profile": s.profile, "notes": "; ".join(s.notes)} for s in samples_x])
+        st.dataframe(info, hide_index=True)
+        g1, g2 = st.columns(2)
+        group_by = g1.selectbox("Group by", ["none", "phase", "composition", "treatment"], key="xs_group")
+        chosen = g2.multiselect("Samples", list(info["sample"]), default=list(info["sample"]), key="xs_pick")
+        sel = [s for s in samples_x if s.sample in chosen]
+        long = ds.long_table(sel)
+
+        def _w(quantity, core=None):
+            w = ds.wide(long, quantity, core)
+            if w.empty or group_by == "none":
+                return w
+            gmap = long.drop_duplicates("sample").set_index("sample")[group_by].astype(str).to_dict()
+            w.columns = pd.MultiIndex.from_tuples([(gmap.get(c, ""), c) for c in w.columns], names=[group_by, "sample"])
+            return w.sort_index(axis=1)
+
+        st.markdown("#### Provisional quantities (nominal = candidate excluded; alternative = candidate as framework; never averaged)")
+        qs = ds.quant_summary(sel)
+        st.dataframe(qs, hide_index=True)
+        cores_x = sorted({c for s in sel for c in s.mappings})
+        core_pick = st.selectbox("Core level for BE / area-fraction tables", cores_x, key="xs_core")
+        if core_pick in UNSUPPORTED_REGIONS:
+            st.info(f"{core_pick}: {NO_MODEL_TEXT}; provider peaks shown as imported (paired where applicable).")
+        st.markdown(f"#### Fitted BE by component — {core_pick} (provider; provenance provider_paired_doublet / provider_raw_fit)")
+        st.dataframe(_w("BE (eV)", core_pick))
+        st.markdown(f"#### Area fraction by component — {core_pick}")
+        st.dataframe(_w("area fraction", core_pick))
+        if any(s.python for s in sel):
+            st.markdown(f"#### Python refit — {core_pick} (area fraction; identifiability in the long table)")
+            st.dataframe(_w("area fraction [python]", core_pick))
+        for oc in ("O 1s", "F 1s"):
+            if oc in cores_x and oc != core_pick:
+                st.markdown(f"#### {oc} fractions")
+                st.dataframe(_w("area fraction", oc))
+        st.markdown("#### Survey at.% (provider atomic concentration table) — incl. Al residual, Cl, S, Li where measured")
+        st.dataframe(_w("at.%"))
+        unres = long[(long["quantity"] == "BE (eV)") & long["identifiability"].astype(str).ne("")]
+        if len(unres):
+            st.markdown("#### Unresolved / unmodelled provider components (labels are neutral; no assignment)")
+            st.dataframe(unres[["sample", "core_level", "component", "provider_label", "value", "identifiability"]]
+                         .rename(columns={"value": "BE (eV)"}), hide_index=True)
+        st.download_button("Comparison long table with provenance (.csv)", csv_bytes(long),
+                           file_name=f"{st.session_state['xs_name']}_comparison_long.csv")
+        st.download_button("Provisional quantities (.csv)", csv_bytes(qs), file_name=f"{st.session_state['xs_name']}_provisional.csv")

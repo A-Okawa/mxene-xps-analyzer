@@ -166,6 +166,15 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
     v["F_fraction_corr"] = z_f_corr / zt if zt > 0 else np.nan
     v["Cl_fraction_corr"] = z_cl / zt if zt > 0 else np.nan
 
+    # Alternative interpretation per element (candidate counted as framework); reported only, never substituted.
+    cand = t[t["role"] == "metal_suboxide_candidate"]
+    by_el_alt = dict(by_el)
+    for el, val in cand.groupby("element")["corrected_area"].sum().items():
+        by_el_alt[str(el)] = by_el_alt.get(str(el), 0.0) + float(val) * scale
+    if len(cand):
+        for el in sorted(by_el_alt):
+            v[f"{el}_norm_alt"] = by_el_alt[el]
+
     # Nominal vs observed metal fractions (§9.4): selective depletion, separate from total deficiency.
     nom = {k: float(x) for k, x in (opt.nominal_metal_stoich or {}).items() if x is not None and float(x) >= 0}
     nom_total, obs_total = sum(nom.values()), sum(by_el.values())
@@ -176,6 +185,9 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
             v[f"{el}_observed_fraction"] = of
             v[f"{el}_fraction_shift"] = of - nf
             v[f"{el}_retention_ratio_fractional"] = of / nf if nf > 0 else np.nan
+            obs_alt = sum(by_el_alt.values())
+            if len(cand) and obs_alt > 0:
+                v[f"{el}_observed_fraction_alt"] = by_el_alt.get(el, 0.0) / obs_alt
             if el not in by_el:
                 warnings.append(f"{el} is in the nominal M-site composition but no {el} framework_metal component was supplied.")
         extra = sorted(set(by_el) - set(nom))
@@ -362,3 +374,59 @@ def legacy_quantify_table(df: pd.DataFrame, rsf: dict[str, float], controls: Opt
         rows.append({"sample": sample, **legacy_quantify(areas, rsf, controls)})
         warns[str(sample)] = w
     return pd.DataFrame(rows), warns
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Provisional reporting: nominal vs alternative, never averaged.
+REPORT_QUANTITIES = (
+    ("M_norm", "M_norm", "M_norm_alt_candidate_as_framework"),
+    ("apparent M-site deficiency delta", "apparent_M_deficiency_delta", "apparent_M_deficiency_delta_alt"),
+    ("z_O_total (termination O)", "z_O_total", None),
+    ("z_F_corrected (termination F)", "z_F_corrected", None),
+    ("z_Cl (termination Cl)", "z_Cl", None),
+    ("z_total_corrected", "z_total_corrected", None),
+)
+
+
+def provisional_report(values: dict, opt: "QuantOptions") -> pd.DataFrame:
+    """One row per reported quantity: nominal (default), alternative (where defined), provisional flag and reasons.
+
+    Default = calibration candidate excluded from the framework; alternative = candidate counted as framework.
+    The two are shown side by side and are never averaged.
+    """
+    v = values
+    prov_delta = v.get("apparent_M_deficiency_status") == "provisional"
+    delta_reasons = []
+    if prov_delta:
+        delta_reasons.append("default excludes the Nb_suboxide_like calibration candidate from the framework; the alternative "
+                             "counts it (both shown, never averaged)")
+        delta_reasons += [str(r) for r in opt.provisional_reasons]
+    delta_reasons.append("surface-sensitive XPS index; not an absolute vacancy concentration")
+    tx_reasons = []
+    if v.get("O_unresolved_low_norm", 0) > 0 or v.get("O_unresolved_mid_norm", 0) > 0:
+        tx_reasons.append("O 1s contains unresolved low/mid-BE components that are not counted as Tx (z_O is a lower bound)")
+    if v.get("F_residue_norm", 0) > 0 and not opt.include_f_residue:
+        tx_reasons.append("high-BE F residue excluded from Tx by default")
+    if v.get("F_unresolved_lowBE_norm", 0) > 0:
+        tx_reasons.append("unresolved low-BE F excluded (no chemistry assigned)")
+    if opt.oxide_f_correction_factor > 0:
+        tx_reasons.append("oxide-derived F correction is model-dependent")
+    if opt.phase == "MAX":
+        tx_reasons.append("MAX phase: termination quantities not meaningful")
+    rows = []
+    els = sorted(k[:-len("_observed_fraction")] for k in v if k.endswith("_observed_fraction"))
+    if "Ti" in els and "Nb" in els:
+        rows.append({"quantity": "Ti/(Ti+Nb)", "nominal (default)": v.get("Ti_observed_fraction"),
+                     "alternative (candidate as framework)": v.get("Ti_observed_fraction_alt"),
+                     "provisional": prov_delta, "why provisional": "; ".join(delta_reasons[:-1]) if prov_delta else "",
+                     "provenance": "derived_quantity"})
+    for label, key, alt in REPORT_QUANTITIES:
+        if key not in v:
+            continue
+        is_delta = key.startswith("apparent") or key == "M_norm"
+        prov = prov_delta if is_delta else bool(tx_reasons)
+        rows.append({"quantity": label, "nominal (default)": v.get(key),
+                     "alternative (candidate as framework)": v.get(alt) if alt else None,
+                     "provisional": prov, "why provisional": "; ".join(delta_reasons if is_delta else tx_reasons),
+                     "provenance": "derived_quantity"})
+    return pd.DataFrame(rows)

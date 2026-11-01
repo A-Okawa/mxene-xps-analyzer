@@ -36,6 +36,10 @@ class KnowledgeBase:
                 for c in comps:
                     if c.source not in self.references:
                         raise ValueError(f"{pkey}/{core}/{c.name}: source {c.source!r} not in references")
+        from .provenance import check_kb_provenance   # provider observations must never act as references
+        bad = check_kb_provenance(self)
+        if bad:
+            raise ValueError("KB provenance violation(s): " + "; ".join(bad))
 
     @property
     def version(self) -> str:

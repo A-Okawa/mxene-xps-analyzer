@@ -82,11 +82,13 @@ class FitResult:
     metrics: dict
     diagnostics: list[str] = field(default_factory=list)
     area_correlation: pd.DataFrame | None = None
+    param_correlation: pd.DataFrame | None = None     # all fitted parameters (BE, FWHM, eta, area per component)
+    bounds: dict | None = None                         # {component: {"BE": (lo, hi), "FWHM": (lo, hi)}}
 
 
 def fit_core_level(x, y, components: list[FitComponent], background: str = "shirley",
                    endpoint_avg: int = 1, corr_threshold: float = 0.8, max_nfev: int = 5000,
-                   max_span_eV: float | None = MAX_SINGLE_REGION_SPAN_EV) -> FitResult:
+                   max_span_eV: float | None = MAX_SINGLE_REGION_SPAN_EV, spectrum_core_level: str | None = None) -> FitResult:
     if not components:
         raise ValueError("No fit components defined for this core level.")
     x = np.asarray(x, dtype=float)
@@ -95,6 +97,10 @@ def fit_core_level(x, y, components: list[FitComponent], background: str = "shir
     x, y = x[m], y[m]
     if len(x) < 20:
         raise ValueError("At least 20 finite data points are required for fitting.")
+    model_cores = {c.core_level for c in components}
+    if spectrum_core_level is not None and model_cores != {spectrum_core_level}:
+        raise ValueError(f"Spectrum is {spectrum_core_level} but the fit model is for {sorted(model_cores)}; refusing to fit "
+                         "a core level with an unrelated model.")
     # I/O plausibility guard: hard stop for implausibly wide (survey / concatenated) ranges.
     range_warnings = check_single_region(x, components[0].core_level, max_span_eV=max_span_eV)
     order = np.argsort(x, kind="stable")
@@ -178,6 +184,7 @@ def fit_core_level(x, y, components: list[FitComponent], background: str = "shir
                         "component (do not report it as detected without justification).")
 
     corr_df = None
+    param_corr_df = None
     try:
         J = res.jac
         dof = max(n - k, 1)
@@ -190,6 +197,14 @@ def fit_core_level(x, y, components: list[FitComponent], background: str = "shir
         corr_df = pd.DataFrame(corr, index=names, columns=names)
         rel_sd = sd * total_area_factor_vec(components) / np.where(comp["area"].to_numpy() > 0, comp["area"].to_numpy(), np.nan)
         comp["area_rel_stderr"] = rel_sd
+        # Additional uncertainty outputs (same covariance; fitted values are unchanged).
+        all_sd = np.sqrt(np.clip(np.diag(cov), 0, None))
+        comp["BE_stderr"] = [all_sd[4 * i] for i in range(len(components))]
+        comp["FWHM_stderr"] = [all_sd[4 * i + 1] for i in range(len(components))]
+        with np.errstate(invalid="ignore", divide="ignore"):
+            pc = cov / np.outer(all_sd, all_sd)
+        labels = [f"{c.name}:{p}" for c in components for p in ("BE", "FWHM", "eta", "area")]
+        param_corr_df = pd.DataFrame(pc, index=labels, columns=labels)
         for a in range(len(names)):
             for b in range(a + 1, len(names)):
                 r_ab = corr[a, b]
@@ -202,7 +217,9 @@ def fit_core_level(x, y, components: list[FitComponent], background: str = "shir
     curves_df = pd.DataFrame({"BE": x, "observed": y, "background": bg, "fit_total": fit_total, "residual": resid})
     for c, cur in zip(components, curves):
         curves_df[c.name] = cur
-    return FitResult(components=comp, curves=curves_df, metrics=metrics, diagnostics=diag, area_correlation=corr_df)
+    bnds = {c.name: {"BE": tuple(c.bounds), "FWHM": tuple(c.fwhm_bounds)} for c in components}
+    return FitResult(components=comp, curves=curves_df, metrics=metrics, diagnostics=diag, area_correlation=corr_df,
+                     param_correlation=param_corr_df, bounds=bnds)
 
 
 def total_area_factor_vec(components: list[FitComponent]) -> np.ndarray:

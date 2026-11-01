@@ -16,7 +16,7 @@ def _app():
 
 def test_app_renders_all_tabs():
     at = _app()
-    assert len(at.tabs) == 5
+    assert len(at.tabs) == 6
     req = at.text_area[0].value
     assert "Ti 2p: 4 candidate doublet(s)" in req and "do NOT force a vacancy-specific" in req
 

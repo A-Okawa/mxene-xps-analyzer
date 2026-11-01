@@ -1,6 +1,6 @@
 # RESUME_AFTER_XPS — restart point after real XPS data acquisition
 
-**Note (2026-11-02):** calibration work continues on branch `calibration/real-xps` (app/KB 1.3.0); see docs/CALIBRATION_LOG.md.
+**Note (2026-11-02):** calibration work continues on branch `calibration/real-xps` (app 1.6.0, KB 1.5.0); see docs/CALIBRATION_LOG.md. Real-data tests: `XPS_SASAKI_DIR=~/Downloads/261030_sasakiXPS`.
 
 **Frozen state:** git tag `v1.2.0-precalibration` (commit message: *Freeze literature-based XPS analyzer before real-data calibration*), 2026-10-16.
 **Status:** the literature-based scientific specification is final for now. **Until calibration with real data,
