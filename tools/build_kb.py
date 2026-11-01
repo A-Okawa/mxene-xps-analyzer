@@ -325,6 +325,56 @@ def apply_calibration_phase2(kb: dict) -> None:
     kb["profiles"]["nbti_211_max"] = _max_profile("(Nb,Ti)2AlC", with_ti=True)
 
 
+# ======================================================================================================================
+# KB 1.3.1 (2026-11-02): metadata only. D4 sensitivity (tools/calibration/d4_nb3d_split_sensitivity.py) and the O 1s
+# cross-check of the Nb candidate (tools/calibration/o1s_crosscheck_nb_candidate.py). No fit value is changed.
+# ======================================================================================================================
+D4_RESULT = {
+    "status": "calibration_sensitive (Nb 3d); decided (Ti 2p)",
+    "decision": ("Nb 3d: KB dSO 2.8 eV kept (not changed). Fixed-grid refit (2.70/2.72/2.75/2.80 eV) of the Nb2CTx and "
+                 "(Nb0.6Ti0.4)2CTx spectra: sample (Nb0.6Ti0.4)2CTx stable, Nb2CTx exceeds the declared materiality "
+                 "criteria (component fraction span >= 0.05 or delta span >= 0.05) in 3 of 4 window/background settings "
+                 "(delta span up to 0.095; at 2.80 eV Nb_suboxide_like sits on its lower window bound 205.40 eV). AIC "
+                 "favours 2.75-2.80 eV in the provider window and is nearly flat on the full raw region. D4 is therefore "
+                 "calibration-sensitive and delta is not finalized. Ti 2p: the provider's 6.17 eV is NOT adopted (Nb 3s "
+                 "overlap compromises the 2p1/2 side); literature-based Ti splitting kept; Ti 2p3/2 prioritized for "
+                 "interpretation."),
+    "decided_by": "user (Ti 2p decision, Nb grid design and criteria); sensitivity analysis by the app maintainer",
+    "decided_at": "2026-11-02",
+}
+O1S_CROSSCHECK = {
+    "date": "2026-11-02", "candidate": "Nb_suboxide_like", "result": "inconclusive",
+    "method": ("Stoichiometric O budget in the low-BE O 1s window (<= 530.8 eV): R = O_low - 2.5 Nb(Nb2O5) - 2 Ti(TiO2), "
+               "compared with x * Nb(candidate) for x = 1 (NbO), 1.5 (Nb(III)), 2 (NbO2), over provider and Python "
+               "decompositions of Nb 3d (incl. the D4 grid) and O 1s (Shirley/linear). Supports if min rho_1 >= 1; "
+               "against if max rho_1 < 0.5."),
+    "summary": ("Nb2CTx: rho_1 0.18-1.06 (median 0.78; provider decompositions 0.55-0.74, rho_2 0.28-0.37): the oxide-O "
+                "budget does not cover a stoichiometric NbO2/Nb(III) oxide but cannot exclude a partial sub-oxide. "
+                "(Nb0.6Ti0.4)2CTx: rho_1 -0.82-1.82 because the O 1s decomposition itself is unstable (low-BE O fraction "
+                "0.38-0.65 between backgrounds); no discriminating power."),
+    "biases": ["provider RSF/transmission set", "overlayer attenuation (O 1s vs Nb 3d kinetic energy)",
+               "ordered O terminations near 530 eV inflate R", "possible O deficiency of surface Nb2O5"],
+}
+
+
+def apply_calibration_d4_o1s(kb: dict) -> None:
+    kb["kb_version"] = "1.3.1"
+    kb["changelog"].append({"version": "1.3.1", "date": "2026-11-02", "note": (
+        "Metadata only: D4 marked calibration-sensitive for Nb 3d (KB 2.8 eV kept; fixed-grid sensitivity) and decided "
+        "for Ti 2p (literature splitting kept, provider 6.17 eV not adopted, Ti 2p3/2 prioritized); O 1s cross-check of "
+        "Nb_suboxide_like recorded as inconclusive; candidate remains unvalidated; delta not finalized. MAX profiles unchanged.")})
+    d4 = next(d for d in kb["spec_discrepancies"] if d["id"] == "D4")
+    d4.update(D4_RESULT)
+    cs = kb["calibration_status"]
+    cs["d4_nb3d_dSO_calibration_sensitive"] = True
+    cs["o1s_crosscheck_nb_suboxide_like"] = O1S_CROSSCHECK
+    cs["delta_finalization_blocked_by"] = [
+        "Nb_suboxide_like (Nb 3d ~205.6-205.9 eV) not validated; O 1s cross-check inconclusive",
+        "D4: Nb 3d spin-orbit splitting is calibration-sensitive for Nb2CTx",
+    ]
+    cs["ti2p_interpretation"] = "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap)."
+
+
 def main() -> None:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     kb = copy.deepcopy(seed)
@@ -382,6 +432,7 @@ def main() -> None:
                     c["provenance"] = ("Starting center/FWHM = Halim SI Nb2CTx value (user decision D2); bounds and "
                                        "fwhm_bounds are editable software fit windows (§27), not literature constants.")
     apply_calibration_phase2(kb)
+    apply_calibration_d4_o1s(kb)
     OUT.write_text(json.dumps(kb, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT}")
 

@@ -17,11 +17,27 @@ def _c(kb, p, core, name):
 
 
 def test_kb_version_and_status(kb):
-    assert kb.version == "1.3.0"
+    assert kb.version == "1.3.1"
     cs = kb.raw["calibration_status"]
     assert cs["nb3d_suboxide_like_validated"] is False
+    assert cs["o1s_crosscheck_nb_suboxide_like"]["result"] == "inconclusive"
+    assert cs["d4_nb3d_dSO_calibration_sensitive"] is True and len(cs["delta_finalization_blocked_by"]) == 2
     d4 = next(d for d in kb.raw["spec_discrepancies"] if d["id"] == "D4")
-    assert d4["status"] == "open"
+    assert d4["status"].startswith("calibration_sensitive")
+
+
+def test_d4_kb_splittings_not_changed(kb):
+    """D4 was resolved by sensitivity analysis only: KB splittings stay at the literature defaults."""
+    for p in ("nb2c_halim", "nbti_m2c_defect_aware"):
+        assert {c.split for c in kb.components(p, "Nb 3d")} == {2.8}
+    assert {c.split for c in kb.components("nbti_m2c_defect_aware", "Ti 2p")} == {5.8, 5.7, 5.6}
+    assert 6.17 not in {c.split for p in kb.profile_keys for cs in kb.fit_models(p).values() for c in cs}
+
+
+def test_provisional_reasons_reported():
+    r = quantify_sample(_table(), {}, QuantOptions(m_target=2, x_target=1, input_mode="corrected_area",
+                                                   provisional_reasons=("D4 sensitive",)))
+    assert any(w == "delta not finalized: D4 sensitive" for w in r.warnings)
 
 
 @pytest.mark.parametrize("p", MX)

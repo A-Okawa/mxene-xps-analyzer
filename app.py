@@ -265,7 +265,8 @@ with tab_q:
                                include_oh_like=inc_oh, include_cl=inc_cl, include_f_residue=inc_fres,
                                oxide_f_correction_factor=fcorr, metal_qc_tolerance=tol, nominal_metal_stoich=nominal,
                                nb_suboxide_validated=bool(KB.raw.get("calibration_status", {}).get("nb3d_suboxide_like_validated", False)),
-                               phase=phase, a_target=a_target)
+                               phase=phase, a_target=a_target,
+                               provisional_reasons=tuple(KB.raw.get("calibration_status", {}).get("delta_finalization_blocked_by", [])))
             try:
                 res, warns = quantify_table(peaks, rsf, opt)
                 if len(reclass):

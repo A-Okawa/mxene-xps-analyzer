@@ -2300,7 +2300,7 @@
     "area_fraction_abs_review": 0.2,
     "note": "Thresholds are conservative QC defaults, not literature constants; expose them to the user. Brette et al. estimate ~0.5 eV numerical uncertainty for their DFT BE calculations and note experimental resolutions around ~0.3 eV in cited MXene work."
   },
-  "kb_version": "1.3.0",
+  "kb_version": "1.3.1",
   "seed_version": "0.1.0",
   "created_at": "2026-10-15",
   "reviewed_by": null,
@@ -2327,6 +2327,11 @@
       "version": "1.3.0",
       "date": "2026-11-02",
       "note": "Calibration phase 2 (user instructions): Nb_suboxide_like doublet candidate (205.6-205.9 eV, role metal_suboxide_candidate, non-framework by default, alternative = termination-modified framework Nb, confidence medium, O 1s cross-check) in nb2c_halim and nbti_m2c_defect_aware; nbti Ti_oxide lower bound 458.2 -> 458.0 eV with Nb 3s overlap warning; F_lowBE_unresolved (~682.7 eV, role unresolved_low_BE_F, not Tx); separate MAX profiles nb2alc_max and nbti_211_max (data-derived, not literature); apparent M deficiency provisional until the Nb candidate is validated; D4 (spin-orbit splitting) recorded as open."
+    },
+    {
+      "version": "1.3.1",
+      "date": "2026-11-02",
+      "note": "Metadata only: D4 marked calibration-sensitive for Nb 3d (KB 2.8 eV kept; fixed-grid sensitivity) and decided for Ti 2p (literature splitting kept, provider 6.17 eV not adopted, Ti 2p3/2 prioritized); O 1s cross-check of Nb_suboxide_like recorded as inconclusive; candidate remains unvalidated; delta not finalized. MAX profiles unchanged."
     }
   ],
   "spec_discrepancies": [
@@ -2361,16 +2366,35 @@
       "id": "D4",
       "topic": "Spin-orbit splitting: KB vs provider",
       "detail": "KB doublets use Nb 3d dSO = 2.8 eV and Ti 2p dSO = 5.6-5.8 eV; the provider (PHI MultiPak) fits use 2.72 eV and 6.17 eV.",
-      "status": "open",
-      "decision": null,
-      "decided_by": null,
-      "decided_at": null
+      "status": "calibration_sensitive (Nb 3d); decided (Ti 2p)",
+      "decision": "Nb 3d: KB dSO 2.8 eV kept (not changed). Fixed-grid refit (2.70/2.72/2.75/2.80 eV) of the Nb2CTx and (Nb0.6Ti0.4)2CTx spectra: sample (Nb0.6Ti0.4)2CTx stable, Nb2CTx exceeds the declared materiality criteria (component fraction span >= 0.05 or delta span >= 0.05) in 3 of 4 window/background settings (delta span up to 0.095; at 2.80 eV Nb_suboxide_like sits on its lower window bound 205.40 eV). AIC favours 2.75-2.80 eV in the provider window and is nearly flat on the full raw region. D4 is therefore calibration-sensitive and delta is not finalized. Ti 2p: the provider's 6.17 eV is NOT adopted (Nb 3s overlap compromises the 2p1/2 side); literature-based Ti splitting kept; Ti 2p3/2 prioritized for interpretation.",
+      "decided_by": "user (Ti 2p decision, Nb grid design and criteria); sensitivity analysis by the app maintainer",
+      "decided_at": "2026-11-02"
     }
   ],
   "calibration_status": {
     "phase": 2,
     "date": "2026-11-02",
     "nb3d_suboxide_like_validated": false,
-    "rule": "Calibration candidates are fitted but not validated. Quantification keeps them out of the framework by default, reports the alternative interpretation separately, and flags apparent M-site deficiency as provisional until the Nb_suboxide_like component is validated (O 1s cross-check + orthogonal evidence)."
+    "rule": "Calibration candidates are fitted but not validated. Quantification keeps them out of the framework by default, reports the alternative interpretation separately, and flags apparent M-site deficiency as provisional until the Nb_suboxide_like component is validated (O 1s cross-check + orthogonal evidence).",
+    "d4_nb3d_dSO_calibration_sensitive": true,
+    "o1s_crosscheck_nb_suboxide_like": {
+      "date": "2026-11-02",
+      "candidate": "Nb_suboxide_like",
+      "result": "inconclusive",
+      "method": "Stoichiometric O budget in the low-BE O 1s window (<= 530.8 eV): R = O_low - 2.5 Nb(Nb2O5) - 2 Ti(TiO2), compared with x * Nb(candidate) for x = 1 (NbO), 1.5 (Nb(III)), 2 (NbO2), over provider and Python decompositions of Nb 3d (incl. the D4 grid) and O 1s (Shirley/linear). Supports if min rho_1 >= 1; against if max rho_1 < 0.5.",
+      "summary": "Nb2CTx: rho_1 0.18-1.06 (median 0.78; provider decompositions 0.55-0.74, rho_2 0.28-0.37): the oxide-O budget does not cover a stoichiometric NbO2/Nb(III) oxide but cannot exclude a partial sub-oxide. (Nb0.6Ti0.4)2CTx: rho_1 -0.82-1.82 because the O 1s decomposition itself is unstable (low-BE O fraction 0.38-0.65 between backgrounds); no discriminating power.",
+      "biases": [
+        "provider RSF/transmission set",
+        "overlayer attenuation (O 1s vs Nb 3d kinetic energy)",
+        "ordered O terminations near 530 eV inflate R",
+        "possible O deficiency of surface Nb2O5"
+      ]
+    },
+    "delta_finalization_blocked_by": [
+      "Nb_suboxide_like (Nb 3d ~205.6-205.9 eV) not validated; O 1s cross-check inconclusive",
+      "D4: Nb 3d spin-orbit splitting is calibration-sensitive for Nb2CTx"
+    ],
+    "ti2p_interpretation": "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap)."
   }
 }

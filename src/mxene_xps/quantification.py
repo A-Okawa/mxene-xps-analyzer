@@ -56,6 +56,7 @@ class QuantOptions:
     nominal_metal_stoich: dict[str, float] = field(default_factory=dict)
     # Calibration phase 2: False until the Nb 3d ~205.6-205.9 eV candidate is validated (KB calibration_status).
     nb_suboxide_validated: bool = False
+    provisional_reasons: tuple = ()  # extra reasons from KB calibration_status (e.g. D4 calibration-sensitive)
     phase: str = "MXene"            # "MXene" or "MAX"
     a_target: Optional[float] = None
 
@@ -208,6 +209,8 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
         warnings.append(W_FRESIDUE)
     if v["apparent_M_deficiency_status"] == "provisional":
         warnings.append(W_PROVISIONAL)
+        for r in opt.provisional_reasons:
+            warnings.append(f"delta not finalized: {r}")
     cand_roles = sorted({r for r in ("metal_suboxide_candidate", "unresolved_low_BE_F") if _sum(t, r) > 0})
     if cand_roles:
         warnings.append(W_CANDIDATE.format(roles=", ".join(cand_roles)))

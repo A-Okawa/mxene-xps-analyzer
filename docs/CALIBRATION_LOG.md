@@ -53,3 +53,48 @@ not uniquely determined by Nb 3d alone, which is why validation needs the O 1s c
 - Literature values for the MAX profiles (replace data-derived starting values).
 - Decision on D4 (spin-orbit splitting).
 - Cl 2p / S 2p fit models (not added).
+
+## D4 sensitivity and O 1s cross-check (app/KB 1.3.1, metadata only, 2026-11-02)
+
+No fit value changed (profiles/structures identical to 1.3.0; MAX profiles untouched). Scripts (private data via
+`XPS_SASAKI_DIR`, outputs outside the repo): `tools/calibration/d4_nb3d_split_sensitivity.py`,
+`tools/calibration/o1s_crosscheck_nb_candidate.py`.
+
+### D4 — Nb 3d ΔSO fixed grid (2.70 / 2.72 / 2.75 / 2.80 eV; all Nb doublets; no continuous ΔSO)
+Materiality declared beforehand: span of f(Nb_MXene) or f(Nb_suboxide_like) ≥ 0.05, or span of δ ≥ 0.05.
+δ uses the Python Nb fractions with provider at.% and provider C/Ti framework fractions (held fixed).
+
+| Sample, window, bg | span f_MXene | span f_sub | span δ | best ΔSO (AIC) | max ΔAIC | material |
+|---|---|---|---|---|---|---|
+| Nb2CTx, provider window, Shirley | 0.034 | 0.008 | **0.095** | 2.80 | 19.5 | yes |
+| Nb2CTx, provider window, linear | 0.007 | **0.054** | 0.020 | 2.80 | 12.3 | yes |
+| Nb2CTx, raw full region, linear | 0.011 | **0.061** | 0.030 | 2.75 | 1.1 | yes |
+| Nb2CTx, raw full region, Shirley | 0.013 | 0.029 | 0.037 | 2.75 | 3.3 | no |
+| (Nb0.6Ti0.4)2CTx, all four | ≤ 0.020 | ≤ 0.028 | ≤ 0.034 | 2.72–2.75 | ≤ 21 | no |
+
+- At ΔSO 2.80 eV `Nb_suboxide_like` drops to its lower window bound (205.40 eV) for Nb2CTx; for ΔSO ≤ 2.75 it sits at
+  205.57–205.66 eV (provider: 205.65–205.89). r(Nb_MXene, candidate) = −0.86 … −0.99 everywhere.
+- Python fractions differ from the provider's (candidate 0.29–0.32 vs provider 0.16/0.25), and background/window
+  choices move δ more than ΔSO does (Nb2CTx δ 0.65–0.81 Python vs 0.46 with provider fractions).
+- **Outcome:** D4 = calibration-sensitive for Nb 3d; KB 2.8 eV kept; δ not finalized. Ti 2p (user decision): provider
+  6.17 eV not adopted (Nb 3s overlap); literature splitting kept; Ti 2p3/2 prioritized.
+
+### O 1s cross-check of Nb_suboxide_like
+O budget in the low-BE window (≤ 530.8 eV): R = O_low − 2.5·Nb(Nb2O5) − 2·Ti(TiO2), ρ_x = R / (x·Nb_candidate),
+x = 1 (NbO), 1.5 (Nb(III)), 2 (NbO2); 27 decomposition combinations per sample. Rule: supports if min ρ1 ≥ 1, against
+if max ρ1 < 0.5, else inconclusive.
+
+| Sample | ρ1 range (median) | provider-only ρ1 / ρ2 | Verdict |
+|---|---|---|---|
+| Nb2CTx | 0.18–1.06 (0.78) | 0.55–0.74 / 0.28–0.37 | inconclusive |
+| (Nb0.6Ti0.4)2CTx | −0.82–1.82 (0.47) | 0.55 / 0.27 | inconclusive (O 1s decomposition unstable: low-BE fraction 0.38–0.65) |
+
+Reading: for Nb2CTx the oxide-O budget does not cover a stoichiometric NbO2 or Nb(III) oxide but cannot exclude a
+partial sub-oxide; biases (RSF, overlayer attenuation, ~530 eV ordered O terminations inflating R) are unquantified.
+**The candidate remains unvalidated; `apparent_M_deficiency_status` stays provisional** and the quantification now
+lists `calibration_status.delta_finalization_blocked_by`.
+
+### Next options
+- Constrain the candidate with information independent of the Nb 3d / O 1s decompositions (e.g. sputter-free
+  angle-resolved data, Nb 3d valence-band / XAS / EELS, or a reference NbO2/NbO/Nb2O5 measurement on the same instrument).
+- Replace MAX starting values with literature values (pending).
