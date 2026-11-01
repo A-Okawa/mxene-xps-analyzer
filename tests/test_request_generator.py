@@ -18,10 +18,12 @@ def test_regions_29_1():
 def test_fit_candidate_counts_and_warnings_29_1(kb):
     txt, _ = generate_request(nbti_setup(), kb)
     assert "Ti 2p: 4 candidate doublet(s)" in txt
-    assert "Nb 3d: 3 candidate doublet(s)" in txt
+    assert "Nb 3d: 4 candidate doublet(s)" in txt     # KB 1.3.0: + Nb_suboxide_like calibration candidate
     assert "C 1s: 4 candidate component(s)" in txt
     assert "O 1s: 4 candidate component(s)" in txt
-    assert "F 1s: 2 candidate component(s)" in txt
+    assert "F 1s: 3 candidate component(s)" in txt     # KB 1.3.0: + F_lowBE_unresolved
+    assert "CALIBRATION CANDIDATE" in txt and "cross-check: O 1s" in txt
+    assert "do not merge it into Nb2O5 or framework Nb" in txt
     assert "do NOT force a vacancy-specific" in txt
     assert "Fit each metal core level independently" in txt
     assert "UNRESOLVED" in txt  # O_low / O_mid flagged
@@ -50,10 +52,11 @@ def test_unknown_element_not_invented():
 
 def test_peak_template_28_with_dopants(kb):
     t = make_peak_template(nbti_setup(dopants=["V"]), kb)
-    assert len(t) == 14 + 3
+    assert len(t) == 16 + 3
     spec28 = ["C_MXene", "Ti_lowBE", "Ti_midBE", "Ti_highBE", "Ti_oxide", "Nb_MXene", "Nb2O5", "NbF5_like",
               "O_low", "O_mid", "OH_like", "O_adsorbate", "F_MXene", "F_residue"]
-    assert sorted(t["component"][:14]) == sorted(spec28)
+    cal = ["Nb_suboxide_like", "F_lowBE_unresolved"]                 # KB 1.3.0 calibration candidates
+    assert sorted(t["component"][:16]) == sorted(spec28 + cal)
     assert list(t.columns) == ["sample", "core_level", "element", "component", "BE", "FWHM", "area", "role", "notes"]
     v = t[t["element"] == "V"]
     assert set(v["role"]) == {"dopant_lattice_candidate", "dopant_adsorbed", "dopant_oxide"}

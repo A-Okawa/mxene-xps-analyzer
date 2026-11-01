@@ -10,7 +10,8 @@ PROFILE = "nbti_m2c_defect_aware"
 
 
 def _fit(kb, truth, tag, fname, bg="linear"):
-    comps = kb.components(PROFILE, truth[tag]["core"])
+    # Synthetic truth was generated with the pre-calibration model (no calibration candidates).
+    comps = [c for c in kb.components(PROFILE, truth[tag]["core"]) if not c.calibration_candidate]
     sp = parse_two_column((FIX / fname).read_bytes())
     r = fit_core_level(sp.be, sp.intensity, comps, background=bg)
     t = pd.DataFrame(truth[tag]["truth"])

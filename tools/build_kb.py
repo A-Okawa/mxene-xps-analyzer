@@ -161,6 +161,170 @@ HALIM_NB2C = {
 
 
 
+# ======================================================================================================================
+# Calibration phase 2 (KB 1.3.0, 2026-11-02, user instructions on branch calibration/real-xps).
+# Data-derived CANDIDATES from the first real provider fits (PHI MultiPak, Sasaki 2026-10 set; private).  They are
+# fitted but not validated: quantification keeps them out of the framework by default and flags dependent outputs
+# provisional.  Using them to "validate" the same provider fits is circular.
+# ======================================================================================================================
+CAL_DATE = "2026-11-02"
+CAL_SOURCE = "Sasaki2026MultiPak"
+CAL_REFERENCE = {
+    CAL_SOURCE: {
+        "title": "Provider PHI MultiPak fits of the Sasaki 2026-10 XPS set (Nb2AlC, (Nb,Ti)2AlC, Nb2CTx, (Nb0.6Ti0.4)2CTx); private, not distributed",
+        "doi": None,
+        "use": "Data-derived calibration candidates and MAX-phase starting values. Not literature; circular if used to validate the same provider fits.",
+    }
+}
+CAL_PROV = (f"Calibration candidate (KB 1.3.0, {CAL_DATE}): starting value/window derived from provider fits ({CAL_SOURCE}); "
+            "not literature, not validated.")
+NB_SPLIT, NB_RATIO = 2.8, 1.5          # same as the existing Nb 3d components (provider reports 2.72; open item D4)
+TI_SPLIT, TI_SPLIT_OX, TI_RATIO = 5.8, 5.7, 2.0
+
+NB_SUBOXIDE = {
+    "name": "Nb_suboxide_like", "kind": "doublet", "center": 205.75, "bounds": [205.4, 206.2], "fwhm": 1.5,
+    "fwhm_bounds": [0.8, 2.3], "split": NB_SPLIT, "ratio_primary_secondary": NB_RATIO,
+    "role": "metal_suboxide_candidate", "source": CAL_SOURCE, "assignment_status": "calibration_candidate",
+    "calibration_candidate": True, "validated": False, "confidence": "medium",
+    "interpretation": ("Tentative Nb_suboxide_like / Nb(III)-O-like doublet, Nb 3d5/2 ~205.6-205.9 eV (3d3/2 ~208.3-208.6 eV), "
+                       "16-25 % of Nb 3d in the provider fits of Nb2CTx and (Nb0.6Ti0.4)2CTx. Non-framework by default. "
+                       "Must not be folded into Nb2O5 or framework Nb. Requires cross-check against O 1s."),
+    "alternative_interpretation": "Termination-modified framework Nb (framework Nb whose 3d BE is shifted by O-rich/disordered terminations).",
+    "alternative_role": "framework_metal", "cross_check": ["O 1s"],
+}
+F_LOW = {
+    "name": "F_lowBE_unresolved", "kind": "single", "center": 682.7, "bounds": [682.0, 683.6], "fwhm": 1.5,
+    "fwhm_bounds": [0.7, 2.4], "role": "unresolved_low_BE_F", "source": CAL_SOURCE, "assignment_status": "unresolved",
+    "calibration_candidate": True, "validated": False, "confidence": "low",
+    "interpretation": ("Unresolved low-BE F 1s component (~682.7 eV, ~10 % of F 1s in the provider fit of Nb2CTx). No chemistry "
+                       "assigned; not counted as Tx."),
+}
+TI_OXIDE_LOW_BOUND = 458.0   # was 458.2; provider TiO2-like 458.17 eV must not be rejected for 0.03 eV
+NB3S_WARNING = ("Nb 3s (roughly 466-469 eV) overlaps the Ti 2p1/2 side and the high-BE background of Ti 2p in Nb-containing "
+                "samples (also noted by the provider). Do not over-trust Ti 2p1/2 positions/areas; the fixed 2:1 ratio "
+                "carries Ti 2p1/2. Compare on Ti 2p3/2 and consider restricting the fit window.")
+
+
+def _c(name, kind, center, bounds, fwhm, fwhm_bounds, role, interp, status="calibration_candidate", conf="medium",
+       split=None, ratio=None, **extra):
+    d = {"name": name, "kind": kind, "center": center, "bounds": list(bounds), "fwhm": fwhm, "fwhm_bounds": list(fwhm_bounds),
+         "role": role, "source": CAL_SOURCE, "interpretation": interp, "assignment_status": status,
+         "calibration_candidate": True, "validated": False, "confidence": conf, "provenance": CAL_PROV}
+    if kind == "doublet":
+        d["split"], d["ratio_primary_secondary"] = split, ratio
+    d.update(extra)
+    return d
+
+
+def _max_profile(material: str, with_ti: bool) -> dict:
+    nb = [
+        _c("Nb_MAX", "doublet", 202.85, (202.3, 203.4), 1.2, (0.7, 2.0), "framework_metal",
+           "Main Nb 3d5/2 line of the MAX phase (provider 202.73-202.95 eV). Metallic MAX lines are asymmetric; a "
+           "symmetric pseudo-Voigt needs Nb_MAX_2nd to describe the tail.", split=NB_SPLIT, ratio=NB_RATIO),
+        _c("Nb_MAX_2nd", "doublet", 203.9, (203.4, 204.6), 1.8, (0.8, 2.6), "framework_metal",
+           "Unresolved: asymmetric tail of the metallic MAX line (symmetric line shape) or a second Nb environment "
+           "(provider 203.83-204.42 eV, FWHM 1.7-2.0).", status="unresolved", conf="low", split=NB_SPLIT, ratio=NB_RATIO,
+           alternative_interpretation="Near-surface Nb-C-O / sub-oxide environment (non-framework).",
+           alternative_role="metal_suboxide_candidate"),
+        {**NB_SUBOXIDE, "bounds": [205.4, 206.4], "center": 205.9, "provenance": CAL_PROV,
+         "interpretation": NB_SUBOXIDE["interpretation"].replace(
+             "of Nb2CTx and (Nb0.6Ti0.4)2CTx", "of Nb2CTx and (Nb0.6Ti0.4)2CTx; MAX provider fits 205.83-206.21 eV")},
+        _c("Nb2O5", "doublet", 207.2, (206.7, 207.8), 1.45, (0.8, 2.3), "metal_oxide",
+           "Nb2O5-like surface oxide (provider 207.07-207.35 eV).", split=NB_SPLIT, ratio=NB_RATIO),
+    ]
+    models = {}
+    if with_ti:
+        models["Ti 2p"] = [
+            _c("Ti_MAX", "doublet", 454.5, (453.9, 455.2), 2.0, (0.8, 2.8), "framework_metal",
+               "Ti in the MAX lattice (provider 454.44-454.51 eV).", split=TI_SPLIT, ratio=TI_RATIO),
+            _c("Ti_oxide", "doublet", 458.4, (TI_OXIDE_LOW_BOUND, 459.5), 1.9, (1.0, 3.0), "metal_oxide",
+               "TiO2-like surface oxide (provider 458.36-458.46 eV).", split=TI_SPLIT_OX, ratio=TI_RATIO),
+        ]
+    models["Nb 3d"] = nb
+    models["C 1s"] = [
+        _c("C_MAX", "single", 282.4, (281.5, 283.2), 1.3, (0.6, 2.3), "framework_C",
+           "Carbide C of the MAX phase (provider 281.90-282.86 eV; wide spread between samples)."),
+        _c("C_C", "single", 284.8, (284.2, 285.4), 1.9, (0.8, 2.8), "contaminant", "Adventitious C (charge reference 284.8 eV). Excluded from framework C.", conf="high"),
+        _c("C_O", "single", 286.6, (285.8, 287.4), 1.8, (0.8, 2.8), "contaminant", "Oxygenated contamination C. Excluded from framework C.", conf="high"),
+        _c("COO", "single", 288.7, (287.8, 289.7), 1.7, (0.8, 2.8), "contaminant", "Carboxyl-type contamination C. Excluded from framework C.", conf="high"),
+    ]
+    models["O 1s"] = [
+        _c("O_lowBE", "single", 529.4, (528.8, 529.9), 1.9, (0.8, 2.5), "O_unresolved_low",
+           "Unresolved low-BE O (metal oxide lattice O candidate; provider 529.30-529.39 eV).", status="unresolved", conf="low"),
+        _c("O_midBE", "single", 530.3, (529.9, 530.9), 1.6, (0.8, 2.5), "O_unresolved_mid",
+           "Unresolved mid-BE O (Nb/Ti oxide O candidate; provider 530.05-530.43 eV).", status="unresolved", conf="low"),
+        _c("O_highBE", "single", 531.8, (531.2, 532.6), 2.4, (1.0, 3.0), "other",
+           "Unresolved high-BE O (Al2O3/hydroxide/adsorbate candidates; provider 531.66-531.94 eV).", status="unresolved", conf="low"),
+    ]
+    models["Al 2p"] = [
+        _c("Al_MAX", "single", 72.2, (71.6, 72.8), 1.4, (0.7, 2.2), "A_site_metal",
+           "Al in the MAX lattice (provider 71.94-72.50 eV). Spin-orbit not resolved; single band."),
+        _c("Al_oxide", "single", 74.1, (73.5, 74.8), 1.6, (0.8, 2.4), "A_site_oxide",
+           "Al2O3-like surface oxide (provider 73.94-74.32 eV)."),
+        _c("Al_highBE", "single", 75.6, (74.9, 76.5), 1.5, (0.8, 2.4), "other",
+           "Unresolved high-BE Al (provider 75.26-76.07 eV; e.g. Al-F or hydroxide candidates).", status="unresolved", conf="low"),
+    ]
+    notes = [
+        "MAX-phase profile (KB 1.3.0): ALL starting values are data-derived from the provider fits of the same samples "
+        f"({CAL_SOURCE}), not literature. Literature values must be added before these become reference models.",
+        "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination.",
+        "Sample-1 provider fit also contains a small Nb 3d doublet at 201.80 eV (3.6 %) that is not modelled here.",
+    ]
+    prof = {"material": material, "phase": "MAX", "notes": notes, "fit_models": models}
+    if with_ti:
+        prof["core_level_warnings"] = {"Ti 2p": [NB3S_WARNING]}
+    return prof
+
+
+CAL_STRUCTURES = {
+    "Nb2AlC": {"m_target": 2.0, "x_target": 1.0, "a_target": 1.0, "default_profile": "nb2alc_max", "phase": "MAX"},
+    "(Nb,Ti)2AlC": {"m_target": 2.0, "x_target": 1.0, "a_target": 1.0, "default_profile": "nbti_211_max", "phase": "MAX"},
+}
+CAL_D4 = {
+    "id": "D4", "topic": "Spin-orbit splitting: KB vs provider",
+    "detail": "KB doublets use Nb 3d dSO = 2.8 eV and Ti 2p dSO = 5.6-5.8 eV; the provider (PHI MultiPak) fits use 2.72 eV and 6.17 eV.",
+    "status": "open", "decision": None, "decided_by": None, "decided_at": None,
+}
+
+
+def apply_calibration_phase2(kb: dict) -> None:
+    kb["kb_version"] = "1.3.0"
+    kb["changelog"].append({"version": "1.3.0", "date": CAL_DATE, "note": (
+        "Calibration phase 2 (user instructions): Nb_suboxide_like doublet candidate (205.6-205.9 eV, role "
+        "metal_suboxide_candidate, non-framework by default, alternative = termination-modified framework Nb, confidence "
+        "medium, O 1s cross-check) in nb2c_halim and nbti_m2c_defect_aware; nbti Ti_oxide lower bound 458.2 -> 458.0 eV with "
+        "Nb 3s overlap warning; F_lowBE_unresolved (~682.7 eV, role unresolved_low_BE_F, not Tx); separate MAX profiles "
+        "nb2alc_max and nbti_211_max (data-derived, not literature); apparent M deficiency provisional until the Nb "
+        "candidate is validated; D4 (spin-orbit splitting) recorded as open.")})
+    kb["references"].update(CAL_REFERENCE)
+    kb["spec_discrepancies"].append(CAL_D4)
+    kb["structures"].update(CAL_STRUCTURES)
+    for k in ("Ti3C2Tx", "Nb2CTx", "(Nb,Ti)2CTx"):
+        kb["structures"][k].setdefault("phase", "MXene")
+    kb["calibration_status"] = {
+        "phase": 2, "date": CAL_DATE,
+        "nb3d_suboxide_like_validated": False,
+        "rule": ("Calibration candidates are fitted but not validated. Quantification keeps them out of the framework by "
+                 "default, reports the alternative interpretation separately, and flags apparent M-site deficiency as "
+                 "provisional until the Nb_suboxide_like component is validated (O 1s cross-check + orthogonal evidence)."),
+    }
+    for pkey in ("nb2c_halim", "nbti_m2c_defect_aware"):
+        prof = kb["profiles"][pkey]
+        prof["phase"] = "MXene"
+        nb = prof["fit_models"]["Nb 3d"]
+        i = next(j for j, c in enumerate(nb) if c["name"] == "Nb2O5")
+        nb.insert(i, {**NB_SUBOXIDE, "provenance": CAL_PROV})
+        prof["fit_models"]["F 1s"].insert(0, {**F_LOW, "provenance": CAL_PROV})
+    ti = kb["profiles"]["nbti_m2c_defect_aware"]["fit_models"]["Ti 2p"]
+    tox = next(c for c in ti if c["name"] == "Ti_oxide")
+    tox["bounds"] = [TI_OXIDE_LOW_BOUND, tox["bounds"][1]]
+    tox["provenance"] += f" Lower BE bound widened 458.2 -> {TI_OXIDE_LOW_BOUND} eV in KB 1.3.0 ({CAL_DATE}) so that the provider TiO2-like 458.17 eV is not rejected solely by a 0.03 eV window edge."
+    kb["profiles"]["nbti_m2c_defect_aware"]["core_level_warnings"] = {"Ti 2p": [NB3S_WARNING]}
+    kb["profiles"]["ti3c2_brette"]["phase"] = "MXene"
+    kb["profiles"]["nb2alc_max"] = _max_profile("Nb2AlC", with_ti=False)
+    kb["profiles"]["nbti_211_max"] = _max_profile("(Nb,Ti)2AlC", with_ti=True)
+
+
 def main() -> None:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     kb = copy.deepcopy(seed)
@@ -217,6 +381,7 @@ def main() -> None:
                                                   "center": center, "fwhm": fwhm, "note": HALIM_NB2C_NOTE}]
                     c["provenance"] = ("Starting center/FWHM = Halim SI Nb2CTx value (user decision D2); bounds and "
                                        "fwhm_bounds are editable software fit windows (§27), not literature constants.")
+    apply_calibration_phase2(kb)
     OUT.write_text(json.dumps(kb, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT}")
 

@@ -10,6 +10,7 @@ ROLE_LABELS: dict[str, str] = {
     "framework_metal": "MXene framework metal",
     "metal_oxide": "metal oxide / oxyfluoride",
     "metal_fluoride": "metal fluoride residue",
+    "metal_suboxide_candidate": "sub-oxide / Nb(III)-O-like candidate (non-framework by default; calibration candidate)",
     "termination_O": "O termination",
     "termination_O_disordered": "disordered O termination candidate",
     "termination_OH_like": "OH-like termination candidate",
@@ -18,7 +19,10 @@ ROLE_LABELS: dict[str, str] = {
     "O_unresolved_mid": "unresolved mid-BE O (not counted as Tx)",
     "termination_F": "F termination",
     "residue_F": "F-containing residue (not Tx by default)",
+    "unresolved_low_BE_F": "unresolved low-BE F (no chemistry assigned; not counted as Tx)",
     "termination_Cl": "Cl termination",
+    "A_site_metal": "A-site metal in the MAX lattice (MAX profiles only)",
+    "A_site_oxide": "A-site oxide / reaction product (e.g. Al2O3-like)",
     "dopant_lattice_candidate": "dopant lattice/vacancy-incorporation candidate",
     "dopant_adsorbed": "adsorbed/intercalated dopant",
     "dopant_oxide": "dopant oxide / secondary phase",
@@ -76,6 +80,14 @@ class FitComponent:
     # never used as a constraint by fitting, validation or quantification.
     literature_reference: Optional[list] = None
     literature_interpretation: Optional[str] = None
+    # Calibration-phase metadata (KB >= 1.3.0). A calibration candidate is fitted, but its chemical role is not
+    # validated: quantification keeps it out of the framework by default and flags dependent outputs provisional.
+    calibration_candidate: bool = False
+    validated: bool = True
+    confidence: Optional[str] = None                  # e.g. "medium"
+    alternative_interpretation: Optional[str] = None
+    alternative_role: Optional[str] = None            # role under the alternative interpretation (reported, not used)
+    cross_check: Optional[list] = None                # core levels that must be checked, e.g. ["O 1s"]
 
     def __post_init__(self) -> None:
         if self.kind not in ("single", "doublet"):
@@ -95,6 +107,10 @@ class FitComponent:
             raise ValueError(f"{self.name}: every component needs a source key")
         if not self.interpretation:
             raise ValueError(f"{self.name}: every component needs an interpretation caveat (§11)")
+        if self.alternative_role is not None and self.alternative_role not in ROLE_LABELS:
+            raise ValueError(f"{self.name}: unknown alternative_role {self.alternative_role!r}")
+        if self.calibration_candidate and self.validated and self.assignment_status == "calibration_candidate":
+            raise ValueError(f"{self.name}: a calibration candidate marked validated must change assignment_status")
 
     @classmethod
     def from_dict(cls, d: dict, core_level: str) -> "FitComponent":
@@ -108,6 +124,10 @@ class FitComponent:
             assignment_status=d.get("assignment_status", "candidate"), provenance=d.get("provenance"),
             literature_reference=d.get("literature_reference"),
             literature_interpretation=d.get("literature_interpretation"),
+            calibration_candidate=bool(d.get("calibration_candidate", False)),
+            validated=bool(d.get("validated", not d.get("calibration_candidate", False))),
+            confidence=d.get("confidence"), alternative_interpretation=d.get("alternative_interpretation"),
+            alternative_role=d.get("alternative_role"), cross_check=d.get("cross_check"),
         )
 
     def to_dict(self) -> dict:

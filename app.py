@@ -53,6 +53,17 @@ def csv_bytes(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8-sig")
 
 
+def _cal_text(x) -> str:
+    if not x.calibration_candidate:
+        return ""
+    t = f"{'validated' if x.validated else 'CANDIDATE'} (confidence {x.confidence or 'n/a'})"
+    if x.alternative_role:
+        t += f"; alt role {x.alternative_role}"
+    if x.cross_check:
+        t += f"; cross-check {', '.join(x.cross_check)}"
+    return t
+
+
 def split_list(text: str) -> list[str]:
     return [t.strip() for t in text.split(",") if t.strip()]
 
@@ -60,7 +71,8 @@ def split_list(text: str) -> list[str]:
 # ------------------------------------------------------------------ sidebar
 with st.sidebar:
     st.header("Sample setup")
-    structure = st.selectbox("Nominal structure", ["(Nb,Ti)2CTx", "Nb2CTx", "Ti3C2Tx", "Custom"])
+    _order = ["(Nb,Ti)2CTx", "Nb2CTx", "Ti3C2Tx"]
+    structure = st.selectbox("Nominal structure", _order + [k for k in KB.structures if k not in _order] + ["Custom"])
     if structure == "Custom":
         m_target = st.number_input("Ideal M-site count", min_value=0.1, value=2.0, step=0.1)
         x_target = st.number_input("Ideal X-site count", min_value=0.1, value=1.0, step=0.1)
@@ -69,9 +81,14 @@ with st.sidebar:
         spec = KB.structures[structure]
         m_target, x_target, profile_key = float(spec["m_target"]), float(spec["x_target"]), spec["default_profile"]
         st.caption(f"M_target = {m_target:g}, X_target = {x_target:g}, profile = `{profile_key}`")
-    default_m = {"(Nb,Ti)2CTx": "Nb,Ti", "Nb2CTx": "Nb", "Ti3C2Tx": "Ti"}.get(structure, "")
+    phase = (KB.structures.get(structure) or KB.profile(profile_key)).get("phase", "MXene")
+    a_target = (KB.structures.get(structure) or {}).get("a_target")
+    if phase == "MAX":
+        st.caption("MAX-phase profile: data-derived calibration candidates (not literature).")
+    default_m = {"(Nb,Ti)2CTx": "Nb,Ti", "Nb2CTx": "Nb", "Ti3C2Tx": "Ti", "Nb2AlC": "Nb", "(Nb,Ti)2AlC": "Nb,Ti"}.get(structure, "")
     m_elements = split_list(st.text_input("M-site elements (comma-separated)", default_m))
-    sample_name = st.text_input("Sample name", "NbTi_MXene_01" if structure == "(Nb,Ti)2CTx" else "MXene_01")
+    sample_name = st.text_input("Sample name", "NbTi_MXene_01" if structure == "(Nb,Ti)2CTx" else
+                                ("MAX_01" if phase == "MAX" else "MXene_01"))
     etchants = st.multiselect("Etching / processing chemistry",
                               ["HF", "LiF/HCl", "NaF/HCl", "KF/HCl", "NH4F/HCl", "TBAOH", "molten chloride", "other"],
                               default=["LiF/HCl"] if structure == "(Nb,Ti)2CTx" else [])
@@ -246,7 +263,9 @@ with tab_q:
         if st.button("Calculate", type="primary"):
             opt = QuantOptions(m_target=m_target, x_target=x_target, input_mode=input_mode, include_o_disordered=inc_dis,
                                include_oh_like=inc_oh, include_cl=inc_cl, include_f_residue=inc_fres,
-                               oxide_f_correction_factor=fcorr, metal_qc_tolerance=tol, nominal_metal_stoich=nominal)
+                               oxide_f_correction_factor=fcorr, metal_qc_tolerance=tol, nominal_metal_stoich=nominal,
+                               nb_suboxide_validated=bool(KB.raw.get("calibration_status", {}).get("nb3d_suboxide_like_validated", False)),
+                               phase=phase, a_target=a_target)
             try:
                 res, warns = quantify_table(peaks, rsf, opt)
                 if len(reclass):
@@ -269,6 +288,10 @@ with tab_q:
         for s, ws in q["warnings"].items():
             for w in ws:
                 st.warning(f"{s}: {w}")
+        if q["model"] == "role-based" and "apparent_M_deficiency_status" in res and (res["apparent_M_deficiency_status"] == "provisional").any():
+            st.error("apparent_M_deficiency_delta is PROVISIONAL (Nb 3d ~205.6–205.9 eV candidate not validated). "
+                     "Compare with `apparent_M_deficiency_delta_alt` (candidate counted as framework); do not report "
+                     "either as final.")
         if q["model"] == "role-based":
             st.info("`apparent_M_deficiency_delta` is a surface-sensitive XPS index after carbide-C normalization, not "
                     "an absolute vacancy concentration. Selective depletion is reported separately via "
@@ -288,6 +311,8 @@ with tab_v:
     cores = list(models)
     core = st.selectbox("Core level", cores)
     kb_comps = models[core]
+    for w in profile.get("core_level_warnings", {}).get(core, []):
+        st.warning(w)
     c1, c2 = st.columns(2)
     with c1:
         importer = st.selectbox("Raw-spectrum format", list(SPECTRUM_IMPORTERS) + list(MULTIREGION_IMPORTERS))
@@ -348,12 +373,13 @@ with tab_v:
                               "center": x.center, "BE_low": x.bounds[0], "BE_high": x.bounds[1],
                               "FWHM": x.fwhm, "FWHM_low": x.fwhm_bounds[0], "FWHM_high": x.fwhm_bounds[1],
                               "ΔSO": x.split, "ratio": x.ratio_primary_secondary,
+                              "calibration": _cal_text(x),
                               "literature reference (display only)": x.literature_summary(),
                               "source": x.source, "DOI": KB.references[x.source].get("doi")} for x in kb_comps])
     ver = st.session_state.setdefault("model_reset", 0)
     edited_model = st.data_editor(
         model_df, hide_index=True, key=f"model_{profile_key}_{core}_{ver}",
-        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "literature reference (display only)", "source", "DOI"])
+        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "calibration", "literature reference (display only)", "source", "DOI"])
     if st.button("Reset model to knowledge-base values"):
         st.session_state["model_reset"] = ver + 1
         st.rerun()
@@ -463,6 +489,11 @@ with tab_v:
         st.dataframe(style_status(fr.components), hide_index=True)
         if fr.diagnostics:
             st.warning("Fit diagnostics:\n\n" + "\n".join(f"- {d}" for d in fr.diagnostics))
+        cand = [x for x in comps if x.calibration_candidate and not x.validated]
+        if cand:
+            st.info("Calibration candidate(s) in this model (fitted, not validated): " + "; ".join(
+                f"{x.name} [{x.role}, confidence {x.confidence}" + (f", cross-check {', '.join(x.cross_check)}" if x.cross_check else "")
+                + "]" for x in cand))
         cv = fr.curves
         fig, (ax, axr) = plt.subplots(2, 1, figsize=(9, 6), sharex=True, gridspec_kw={"height_ratios": [4, 1]})
         ax.plot(cv["BE"], cv["observed"], ".", ms=2, color="0.3", label="observed")
@@ -533,9 +564,16 @@ with tab_kb:
                                     "FWHM": x.fwhm, "FWHM bounds": f"{x.fwhm_bounds[0]}–{x.fwhm_bounds[1]}",
                                     "literature reference (display only)": x.literature_summary(),
                                     "literature interpretation": x.literature_interpretation or "",
-                                    "role": x.role, "status": x.assignment_status,
+                                    "role": x.role, "status": x.assignment_status, "calibration": _cal_text(x),
+                                    "alternative interpretation": x.alternative_interpretation or "",
                                     "interpretation": x.interpretation, "source": x.source,
                                     "reference": KB.reference_text(x.source)} for x in cs]), hide_index=True)
+    for c_core, ws in profile.get("core_level_warnings", {}).items():
+        for w in ws:
+            st.warning(f"{c_core}: {w}")
+    if "calibration_status" in KB.raw:
+        st.subheader("Calibration status")
+        st.json(KB.raw["calibration_status"])
     st.subheader("Role ontology")
     st.dataframe(pd.DataFrame({"role": list(ROLE_LABELS), "meaning": list(ROLE_LABELS.values())}), hide_index=True)
     st.subheader("References")

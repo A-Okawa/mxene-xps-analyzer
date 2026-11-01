@@ -31,6 +31,13 @@ W_DOPANT = ("Dopant amount is reported by chemical role and is not automatically
             "additional evidence where possible.")
 W_FCORR = ("Oxide-derived F correction is model-dependent. Always retain/report raw F and justify the correction model "
            "for the actual oxide/oxyfluoride chemistry.")
+W_PROVISIONAL = ("apparent_M_deficiency_delta is PROVISIONAL: the Nb 3d ~205.6-205.9 eV component (Nb_suboxide_like, "
+                 "calibration candidate) is not validated. It is excluded from framework Nb by default; the alternative "
+                 "(termination-modified framework Nb) is reported as *_alt. Validate against O 1s and orthogonal evidence.")
+W_CANDIDATE = ("Calibration-candidate role(s) present ({roles}); these components are kept out of framework/Tx sums by "
+               "default and are reported separately. Do not use the affected outputs as final values until validated.")
+W_MAX = ("MAX-phase structure: termination (z_*) outputs are not meaningful; O/F/Cl are surface oxide/contamination. "
+         "M_norm is normalized to MAX carbide C.")
 W_FRESIDUE = ("High-BE F residue is not counted as termination by default. It was included here by user choice; "
               "the assignment must be justified.")
 
@@ -47,6 +54,10 @@ class QuantOptions:
     oxide_f_correction_factor: float = 0.0
     metal_qc_tolerance: float = 0.35   # software default, user-editable; not a physical constant
     nominal_metal_stoich: dict[str, float] = field(default_factory=dict)
+    # Calibration phase 2: False until the Nb 3d ~205.6-205.9 eV candidate is validated (KB calibration_status).
+    nb_suboxide_validated: bool = False
+    phase: str = "MXene"            # "MXene" or "MAX"
+    a_target: Optional[float] = None
 
 
 @dataclass
@@ -99,6 +110,7 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
     m_fw = float(metal["corrected_area"].sum())
     m_norm = m_fw * scale
     delta = float(opt.m_target) - m_norm
+    subox = _sum(t, "metal_suboxide_candidate")       # never folded into framework or oxide
     by_el = {str(k): float(v) * scale for k, v in metal.groupby("element")["corrected_area"].sum().items()}
 
     o_low = _sum(t, "termination_O")
@@ -108,6 +120,7 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
     oxide_o = _sum(t, "oxide_O")
     unres_low, unres_mid = _sum(t, "O_unresolved_low"), _sum(t, "O_unresolved_mid")
 
+    f_low = _sum(t, "unresolved_low_BE_F")             # no chemistry assigned; never Tx
     f_term = _sum(t, "termination_F")
     f_res = _sum(t, "residue_F")
     if opt.include_f_residue:
@@ -125,6 +138,13 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
         "apparent_M_deficiency_delta": delta,
         "metal_QC": "PASS" if abs(delta) <= opt.metal_qc_tolerance else "CHECK",
     }
+    has_nb = bool((t["element"] == "Nb").any())
+    provisional = (has_nb and not opt.nb_suboxide_validated) or subox > 0
+    v["apparent_M_deficiency_status"] = "provisional" if provisional else "standard"
+    v["M_suboxide_candidate_norm"] = subox * scale
+    # Alternative interpretation (termination-modified framework Nb): reported side by side, never substituted.
+    v["M_norm_alt_candidate_as_framework"] = (m_fw + subox) * scale
+    v["apparent_M_deficiency_delta_alt"] = float(opt.m_target) - (m_fw + subox) * scale
     for el, val in sorted(by_el.items()):
         v[f"{el}_norm"] = val
     z_o = o_term * scale
@@ -134,6 +154,7 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
         "oxide_O_norm": oxide_o * scale,
         "O_unresolved_low_norm": unres_low * scale, "O_unresolved_mid_norm": unres_mid * scale,
         "z_F_raw": z_f_raw, "z_F_corrected": z_f_corr, "F_residue_norm": f_res * scale,
+        "F_unresolved_lowBE_norm": f_low * scale,
         "oxide_f_correction_factor": float(opt.oxide_f_correction_factor),
         "z_Cl": z_cl,
         "z_total_raw": z_o + z_f_raw + z_cl,
@@ -160,6 +181,13 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
         if extra:
             warnings.append(f"framework_metal component(s) for {extra} are not in the nominal M-site composition.")
 
+    a_site = _sum(t, "A_site_metal")
+    if a_site > 0 or opt.phase == "MAX":
+        v["A_site_metal_norm"] = a_site * scale
+        v["A_site_oxide_norm"] = _sum(t, "A_site_oxide") * scale
+        if opt.a_target is not None:
+            v["A_target"] = float(opt.a_target)
+
     dop = t[t["role"].isin(DOPANT_ROLES)]
     if len(dop):
         for (el, role), g in dop.groupby(["element", "role"]):
@@ -178,6 +206,13 @@ def quantify_sample(df: pd.DataFrame, rsf: dict[str, float], opt: QuantOptions) 
         warnings.append(W_FCORR)
     if opt.include_f_residue and f_res > 0:
         warnings.append(W_FRESIDUE)
+    if v["apparent_M_deficiency_status"] == "provisional":
+        warnings.append(W_PROVISIONAL)
+    cand_roles = sorted({r for r in ("metal_suboxide_candidate", "unresolved_low_BE_F") if _sum(t, r) > 0})
+    if cand_roles:
+        warnings.append(W_CANDIDATE.format(roles=", ".join(cand_roles)))
+    if opt.phase == "MAX":
+        warnings.append(W_MAX)
     if opt.input_mode == "atomic_percent":
         warnings.append("atomic_percent input is treated as already RSF-corrected; confirm the provider's RSF set.")
     return QuantResult(sample=str(sample), values=v, table=t, warnings=warnings)

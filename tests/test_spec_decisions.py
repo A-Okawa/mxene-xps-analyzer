@@ -117,6 +117,8 @@ def test_d2_nb2c_reference_values(kb):
 def test_d2_does_not_change_mixed_metal_profile(kb):
     seed = {c["name"]: c for c in SEED["profiles"]["nbti_m2c_defect_aware"]["fit_models"]["Nb 3d"]}
     for c in kb.components("nbti_m2c_defect_aware", "Nb 3d"):
+        if c.calibration_candidate:       # KB 1.3.0 addition, not part of D2
+            continue
         assert (c.center, c.fwhm) == (seed[c.name]["center"], seed[c.name]["fwhm"])
         assert c.literature_reference is None
 

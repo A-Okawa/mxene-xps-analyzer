@@ -66,6 +66,11 @@ def _component_line(c: FitComponent) -> str:
     s += f"; role = {c.role}"
     if c.assignment_status == "unresolved":
         s += " (UNRESOLVED – please do not assign by BE alone)"
+    if c.calibration_candidate and not c.validated:
+        s += f" (CALIBRATION CANDIDATE, confidence {c.confidence or 'n/a'} – fit it as a separate component; do not fold it into another"
+        s += " component)" if not c.cross_check else f" component; cross-check: {', '.join(c.cross_check)})"
+        if c.alternative_interpretation:
+            s += f"\n      alternative interpretation: {c.alternative_interpretation}"
     s += f"; source = {c.source}"
     for r in c.literature_reference or []:
         tag = ", ".join(x for x in (r["source"], r.get("dataset"), f"Table {r['table']}" if r.get("table") else None,
@@ -135,6 +140,9 @@ def generate_request(setup: SampleSetup, kb: KnowledgeBase) -> tuple[str, pd.Dat
     if "Nb" in setup.m_elements or "Nb" in setup.dopants:
         L.append("- Nb 3d: begin with framework Nb + oxide + fluoride-like contribution when required; do not force"
                  " a unique vacancy-only Nb peak.")
+        if any(c.name == "Nb_suboxide_like" for c in kb.fit_models(setup.profile_key).get("Nb 3d", [])):
+            L.append("- Nb 3d: report any ~205.6–205.9 eV (3d5/2) doublet as a SEPARATE component; do not merge it into"
+                     " Nb2O5 or framework Nb (calibration candidate, under evaluation).")
     L += ["", "C/O/F guidance:",
           "- C 1s: separate framework carbide C from adventitious/oxygenated carbon.",
           "- O 1s: keep oxide O, termination-related O, OH-like O, adsorbed H2O/organic O conceptually separate."]

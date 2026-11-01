@@ -1,5 +1,7 @@
 # RESUME_AFTER_XPS — restart point after real XPS data acquisition
 
+**Note (2026-11-02):** calibration work continues on branch `calibration/real-xps` (app/KB 1.3.0); see docs/CALIBRATION_LOG.md.
+
 **Frozen state:** git tag `v1.2.0-precalibration` (commit message: *Freeze literature-based XPS analyzer before real-data calibration*), 2026-10-16.
 **Status:** the literature-based scientific specification is final for now. **Until calibration with real data,
 do not change** the scientific model, fit windows, QC thresholds, RSFs, line shapes, etc.
