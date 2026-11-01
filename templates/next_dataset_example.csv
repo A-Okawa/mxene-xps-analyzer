@@ -1,0 +1,6 @@
+sample_id,provider_file,nominal_composition,phase,synthesis_route,etchant,treatment,treatment_temperature_C,measurement_date,be_reference_method,instrument_operator_notes,sputtered,comments
+1,,Nb2AlC,MAX,,,,,,,,unknown,planned sample (dataset metadata only; not KB)
+2,,(Nb0.9Ti0.1)2AlC,MAX,,,,,,,,unknown,planned sample
+3,,(Nb0.6Ti0.4)2AlC,MAX,,,,,,,,unknown,planned sample
+4,,Nb2CTx,MXene,LiF-HCl,LiF/HCl,H2SO4,140,,,,unknown,planned sample: LiF-HCl synthesis then 140 C H2SO4 treatment
+5,,(Nb0.6Ti0.4)2CTx,MXene,LiF-HCl,LiF/HCl,H2SO4,100,,,,unknown,planned sample: LiF-HCl synthesis then 100 C H2SO4 treatment

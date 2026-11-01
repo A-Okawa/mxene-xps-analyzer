@@ -82,3 +82,6 @@ htmlcov/
 *.tmp
 *~
 .DS_Store
+
+# metadata templates contain no measurement data
+!templates/*.csv
