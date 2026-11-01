@@ -1,7 +1,7 @@
 """D4 sensitivity: refit real Nb 3d spectra with a fixed grid of spin-orbit splittings (KB unchanged).
 
 Usage:
-  XPS_SASAKI_DIR=~/Downloads/261030_sasakiXPS PYTHONPATH=src python -I tools/calibration/d4_nb3d_split_sensitivity.py OUT_DIR
+  XPS_SASAKI_DIR=/path/to/private/provider_folder PYTHONPATH=src python -I tools/calibration/d4_nb3d_split_sensitivity.py OUT_DIR
 
 Private data are read from XPS_SASAKI_DIR; outputs go to OUT_DIR (keep it outside the repository).
 

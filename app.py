@@ -39,7 +39,8 @@ from mxene_xps.calibration import NO_MODEL_TEXT, UNSUPPORTED_REGIONS  # noqa: E4
 from mxene_xps.identifiability import assess as assess_identifiability, warnings_from as ident_warnings  # noqa: E402
 from mxene_xps.provenance import PROVENANCE, start_value_provenance  # noqa: E402
 from mxene_xps.quantification import provisional_report  # noqa: E402
-from mxene_xps.reporting import calibration_summary, calibration_summary_html, git_commit  # noqa: E402
+from mxene_xps.reporting import calibration_summary, calibration_summary_html, fits_export, git_commit  # noqa: E402
+from mxene_xps.release import release_info  # noqa: E402
 from mxene_xps import sensitivity as sens  # noqa: E402
 from mxene_xps.validation import (IDENTIFIABILITY_WARNING, compare_components, compare_grouped,  # noqa: E402
                                   prepare_vendor, role_disagreements, summarize)
@@ -55,6 +56,21 @@ def style_status(df: pd.DataFrame):
     cols = [c for c in df.columns if c == "QC" or c.startswith("QC_") or c == "metal_QC"]
     fmt = {c: "{:.4g}" for c in df.columns if pd.api.types.is_float_dtype(df[c])}
     return df.style.format(fmt, na_rep="").map(lambda v: f"background-color:{STATUS_COLOR.get(v, '')}", subset=cols)
+
+
+from mxene_xps.severity import QC_STATUS_SEVERITY, classify as sev_classify  # noqa: E402
+
+_SEV_UI = {"INFO": st.info, "CAUTION": st.warning, "WARNING": st.warning, "INVALID": st.error}
+_SEV_ICON = {"INFO": "ℹ️", "CAUTION": "🟡", "WARNING": "⚠️", "INVALID": "⛔"}
+
+
+def say(a: str, b: str | None = None) -> None:
+    """Show a message with a consistent severity: say(text[, LEVEL]) or say(LEVEL, text)."""
+    if a in _SEV_UI and b is not None:
+        level, text = a, b
+    else:
+        text, level = a, (b or sev_classify(a))
+    _SEV_UI[level](f"**{level}** — {text}", icon=_SEV_ICON[level])
 
 
 def csv_bytes(df: pd.DataFrame) -> bytes:
@@ -156,7 +172,7 @@ ctx_warn = metadata_warnings(md)
 if ctx_warn:
     with st.expander(f"⚠ Measurement-context warnings ({len(ctx_warn)})", expanded=md.sputtered):
         for w in ctx_warn:
-            st.warning(w)
+            say(w)
 
 tab_req, tab_q, tab_v, tab_kb, tab_rep, tab_x = st.tabs(
     ["1. Request generator", "2. Peak table & quantification", "3. Provider ↔ Python validation",
@@ -180,7 +196,7 @@ with tab_q:
                               horizontal=True) == "Legacy Ti3C2Tx workbook model"
 
     if use_legacy:
-        st.info(LEGACY_LABEL)
+        say(LEGACY_LABEL, "INFO")
         tmpl = legacy_template(sample_name)
         st.download_button("Download legacy component template", csv_bytes(tmpl), file_name=f"{sample_name}_legacy_template.csv")
         up = st.file_uploader("Upload legacy component CSV (sample, core_level, component, area)", type=["csv"], key="leg_up")
@@ -207,7 +223,7 @@ with tab_q:
                 st.session_state["quant"] = {"results": res, "warnings": warns, "model": "legacy", "profile": profile_key, "options": ctrl,
                                              "rsf": rsf, "table": leg_df, "reclass": None}
             except Exception as e:
-                st.error(str(e))
+                say(str(e), "INVALID")
     else:
         st.subheader("Provider component table")
         st.markdown("Required columns: `sample, core_level, component, area, role`. Recommended: "
@@ -225,7 +241,7 @@ with tab_q:
 
         reclass = role_reclassifications(peaks, kb_roles) if {"core_level", "component", "role", "sample"} <= set(peaks.columns) else pd.DataFrame()
         if len(reclass):
-            st.warning("Roles changed from the knowledge-base default. These are user assignments and are recorded in "
+            say("CAUTION", "Roles changed from the knowledge-base default. These are user assignments and are recorded in "
                        "the export; each must be justified (e.g. by metal-core cross-check or orthogonal evidence).")
             st.dataframe(reclass, hide_index=True)
 
@@ -257,7 +273,7 @@ with tab_q:
             if input_mode == "raw_area":
                 miss = [c for c in cores if c not in rsf]
                 if miss:
-                    st.warning(f"RSF required (no 1.0 default): {', '.join(miss)}")
+                    say("CAUTION", f"RSF required before calculation (no 1.0 default): {', '.join(miss)}")
 
         with st.expander("Orthogonal evidence (§2.2, §24.4) – displayed, not scored"):
             if "evidence" not in st.session_state:
@@ -283,7 +299,7 @@ with tab_q:
                 st.session_state["quant"] = {"results": res, "warnings": warns, "model": "role-based", "profile": profile_key,
                                              "options": opt.__dict__, "rsf": rsf, "table": peaks, "reclass": reclass}
             except Exception as e:
-                st.error(str(e))
+                say(str(e), "INVALID")
 
     q = st.session_state.get("quant")
     if q and q["model"] == ("legacy" if use_legacy else "role-based") and q.get("profile") == profile_key:
@@ -293,7 +309,8 @@ with tab_q:
                 .map(lambda x: f"{x:.6g}" if isinstance(x, (float, np.floating)) else x)
                 .reset_index().rename(columns={"index": "quantity"}))
         st.dataframe(show, hide_index=True, height=min(900, 36 * (len(show) + 1)))
-        st.download_button("Download quantification results (.csv)", csv_bytes(res), file_name=f"{sample_name}_quantification.csv")
+        st.download_button("Download quantification results (.csv)", csv_bytes(res.assign(provenance="derived_quantity",
+                                                                                         app_version=__version__, kb_version=KB.version)), file_name=f"{sample_name}_quantification.csv")
         if q["model"] == "role-based":
             st.markdown("**Nominal vs alternative (provisional quantities)** — default excludes the calibration candidate "
                         "from the framework; the alternative counts it. The two are never averaged.")
@@ -308,13 +325,13 @@ with tab_q:
             q["provisional"] = prov_df
         for s, ws in q["warnings"].items():
             for w in ws:
-                st.warning(f"{s}: {w}")
+                say(f"{s}: {w}")
         if q["model"] == "role-based" and "apparent_M_deficiency_status" in res and (res["apparent_M_deficiency_status"] == "provisional").any():
-            st.error("apparent_M_deficiency_delta is PROVISIONAL (Nb 3d ~205.6–205.9 eV candidate not validated). "
+            say("CAUTION", "apparent_M_deficiency_delta is PROVISIONAL (Nb 3d ~205.6–205.9 eV candidate not validated). "
                      "Compare with `apparent_M_deficiency_delta_alt` (candidate counted as framework); do not report "
                      "either as final.")
         if q["model"] == "role-based":
-            st.info("`apparent_M_deficiency_delta` is a surface-sensitive XPS index after carbide-C normalization, not "
+            say("INFO", "`apparent_M_deficiency_delta` is a surface-sensitive XPS index after carbide-C normalization, not "
                     "an absolute vacancy concentration. Selective depletion is reported separately via "
                     "`<M>_fraction_shift` / `<M>_retention_ratio_fractional`.")
             ev_lines, ev_status = evidence_summary([
@@ -334,10 +351,10 @@ with tab_v:
     kb_comps = models.get(core, [])
     unsupported = not kb_comps
     if unsupported:
-        st.error(f"{core}: {NO_MODEL_TEXT}. The region can be imported, displayed and exported, and provider peaks can be "
+        say("CAUTION", f"{core}: {NO_MODEL_TEXT}. The region can be imported, displayed and exported, and provider peaks can be "
                  f"imported, but no Python fit is run. {UNSUPPORTED_REGIONS.get(core, '')}")
     for w in profile.get("core_level_warnings", {}).get(core, []):
-        st.warning(w)
+        say(w, "CAUTION")
     c1, c2 = st.columns(2)
     with c1:
         importer = st.selectbox("Raw-spectrum format", list(SPECTRUM_IMPORTERS) + list(MULTIREGION_IMPORTERS))
@@ -353,9 +370,9 @@ with tab_v:
                                     key=f"region_{raw_file.name}_{core}")
                 region_sp = regs[pick]
                 if region_sp.core_level != core:
-                    st.error(f"Selected region {region_sp.region} is not {core}; fitting it with the {core} model is refused.")
+                    say("INVALID", f"Selected region {region_sp.region} is not {core}; fitting it with the {core} model is refused.")
             except Exception as e:
-                st.error(f"Multi-region import failed: {e}")
+                say("INVALID", f"Multi-region import failed: {e}")
         restrict = st.checkbox("Restrict fit BE window", value=False,
                                help="E.g. exclude a neighbouring core level. Recorded in the fit settings.")
         win = None
@@ -418,10 +435,10 @@ with tab_v:
         try:
             comps, model_log = with_overrides(kb_comps, overrides)
         except ValueError as e:
-            st.error(f"Invalid model edit: {e}")
+            say("INVALID", f"Invalid model edit: {e}")
             comps, model_log = kb_comps, []
         if model_log:
-            st.warning(f"{len(model_log)} starting value/window edit(s) relative to KB v{KB.version}; recorded in the "
+            say("CAUTION", f"{len(model_log)} starting value/window edit(s) relative to KB v{KB.version}; recorded in the "
                        "fit settings and the project export.")
             st.dataframe(pd.DataFrame(model_log).astype(str), hide_index=True)
 
@@ -447,7 +464,7 @@ with tab_v:
                                     format_func=lambda i: cands.set_index("summary_index").at[i, "lbl"],
                                     key=f"mp_sum_{core}_{raw_name}")
                 if raw_name and not any(st_ and st_ in raw_name for st_ in stems):
-                    st.warning("No provider summary matches the raw-file name; confirm the selected summary belongs to "
+                    say("WARNING", "No provider summary matches the raw-file name; confirm the selected summary belongs to "
                                "the same sample/region.")
                 one = mp_bands[mp_bands["summary_index"] == sidx]
                 doublets, linked = pair_spin_orbit(one)
@@ -467,21 +484,21 @@ with tab_v:
                 edits = {r["doublet_id"]: (r["mapped_component"] or None) for r in ed.to_dict("records")}
                 mapping, map_log = apply_user_mapping(auto.table, edits, comps)
                 for n in auto.notes:
-                    st.info(n)
+                    say(n, "CAUTION")
                 est = mapping[mapping["area_convention"] == "primary_line_only"]
                 if len(est):
-                    st.warning("Only one spin-orbit line was reported for: " + ", ".join(est["provider_label"])
+                    say("CAUTION", "Only one spin-orbit line was reported for: " + ", ".join(est["provider_label"])
                                + ". Total areas are ESTIMATED with the degeneracy ratio.")
                 chk = mapping[mapping["area_convention"] == "unpaired_check"]
                 if len(chk):
-                    st.warning("Unpaired band(s) next to paired doublets: " + ", ".join(chk["provider_label"]) + " — check.")
+                    say("WARNING", "Unpaired band(s) next to paired doublets: " + ", ".join(chk["provider_label"]) + " — check.")
                 if map_log:
-                    st.warning(f"{len(map_log)} user mapping change(s) relative to the automatic tentative mapping (logged).")
+                    say("CAUTION", f"{len(map_log)} user mapping change(s) relative to the automatic tentative mapping (logged).")
                     st.dataframe(pd.DataFrame(map_log).astype(str), hide_index=True)
                 mp_state = {"bands": linked, "mapping": mapping, "mapping_log": map_log,
                             "vendor": provider_component_table(mapping)}
         except Exception as e:
-            st.error(f"MultiPak import failed: {e}")
+            say("INVALID", f"MultiPak import failed: {e}")
 
     if unsupported:
         sp_show = region_sp if region_sp is not None else None
@@ -489,7 +506,7 @@ with tab_v:
             try:
                 sp_show = SPECTRUM_IMPORTERS[importer](raw_file.getvalue())
             except Exception as e:
-                st.error(f"Import failed: {e}")
+                say("INVALID", f"Import failed: {e}")
         if sp_show is not None:
             fig, ax = plt.subplots(figsize=(8, 3.5))
             ax.plot(sp_show.be, sp_show.intensity, ".-", ms=2, lw=0.6, color="0.3")
@@ -528,7 +545,7 @@ with tab_v:
                                                                           "source_region": sp.region,
                                                                           "fit_window_eV": list(win) if win else None}}
         except Exception as e:
-            st.error(f"Fit failed: {e}")
+            say("INVALID", f"Fit failed: {e}")
 
     fitstate = st.session_state.get("fits", {}).get(f"{profile_key} | {core}")
     if fitstate:
@@ -551,12 +568,15 @@ with tab_v:
                                          "boundary-limited": "background-color:#fde2c2", "non-identifiable": "background-color:#f7d0d0"}.get(v, ""),
                               subset=["status"]), hide_index=True)
             for w in ident_warnings(ident):
-                st.caption("• " + w)
+                st.caption(f"• [{sev_classify(w)}] {w}")
         if fr.diagnostics:
-            st.warning("Fit diagnostics:\n\n" + "\n".join(f"- {d}" for d in fr.diagnostics))
+            for lv in ("INVALID", "WARNING", "CAUTION", "INFO"):
+                ds_ = [d for d in fr.diagnostics if sev_classify(d) == lv]
+                if ds_:
+                    say(lv, "Fit diagnostics:\n\n" + "\n".join(f"- {d}" for d in ds_))
         cand = [x for x in comps if x.calibration_candidate and not x.validated]
         if cand:
-            st.info("Calibration candidate(s) in this model (fitted, not validated): " + "; ".join(
+            say("CAUTION", "Calibration candidate(s) in this model (fitted, not validated): " + "; ".join(
                 f"{x.name} [{x.role}, confidence {x.confidence}" + (f", cross-check {', '.join(x.cross_check)}" if x.cross_check else "")
                 + "]" for x in cand))
         cv = fr.curves
@@ -577,8 +597,8 @@ with tab_v:
             buf = io.BytesIO(); fig.savefig(buf, format=fmt, dpi=200)
             dl[i].download_button(f"Plot .{fmt}", buf.getvalue(), file_name=f"{sample_name}_{core.replace(' ', '')}_fit.{fmt}")
         plt.close(fig)
-        dl[3].download_button("Fit components .csv", csv_bytes(fr.components), file_name=f"{sample_name}_{core.replace(' ', '')}_python_fit.csv")
-        dl[4].download_button("Curves .csv", csv_bytes(cv), file_name=f"{sample_name}_{core.replace(' ', '')}_curves.csv")
+        dl[3].download_button("Fit components .csv", csv_bytes(fr.components.assign(provenance="python_fit")), file_name=f"{sample_name}_{core.replace(' ', '')}_python_fit.csv")
+        dl[4].download_button("Curves .csv", csv_bytes(cv.assign(provenance="observed=raw_measurement; other columns=python_fit")), file_name=f"{sample_name}_{core.replace(' ', '')}_curves.csv")
         if fr.area_correlation is not None:
             with st.expander("Area-parameter correlation matrix"):
                 st.dataframe(fr.area_correlation.style.format("{:+.2f}"))
@@ -616,7 +636,7 @@ with tab_v:
                 st.dataframe(sres.spans, hide_index=True)
                 ms = sres.spans[sres.spans["model_sensitive"]]["quantity"].tolist() if len(sres.spans) else []
                 if ms:
-                    st.warning("model-sensitive: " + ", ".join(ms))
+                    say("WARNING", "model-sensitive: " + ", ".join(ms))
 
         if vendor_file is not None and (prov_fmt == "Generic component CSV" or mp_state is not None):
             try:
@@ -632,23 +652,23 @@ with tab_v:
                     cqc.insert(1, "provider_label", cqc["component"].map(dict(zip(vp["component"], vp["provider_label"]))))
                 gqc = compare_grouped(vp, fr.components, th)
                 summ = summarize(cqc, gqc)
-                getattr(st, summ.level)(f"**{summ.status}** — {summ.message}")
+                say(QC_STATUS_SEVERITY.get(summ.status, "CAUTION"), f"provider-vs-Python QC {summ.status}: {summ.message}")
                 for msg in role_disagreements(vp):
-                    st.warning(msg)
+                    say(msg, "CAUTION")
                 st.markdown("**Role-grouped QC**")
                 st.dataframe(style_status(gqc), hide_index=True)
                 st.markdown("**Component-level QC** (ΔBE = Python − Provider)")
                 st.dataframe(style_status(cqc), hide_index=True)
                 st.caption(IDENTIFIABILITY_WARNING)
                 d1, d2 = st.columns(2)
-                d1.download_button("Component QC .csv", csv_bytes(cqc), file_name=f"{sample_name}_{core.replace(' ', '')}_validation.csv")
-                d2.download_button("Grouped QC .csv", csv_bytes(gqc), file_name=f"{sample_name}_{core.replace(' ', '')}_validation_grouped.csv")
+                d1.download_button("Component QC .csv", csv_bytes(cqc.assign(provenance_vendor="provider", provenance_python="python_fit")), file_name=f"{sample_name}_{core.replace(' ', '')}_validation.csv")
+                d2.download_button("Grouped QC .csv", csv_bytes(gqc.assign(provenance="derived_quantity")), file_name=f"{sample_name}_{core.replace(' ', '')}_validation_grouped.csv")
                 fitstate.update({"component_qc": cqc, "grouped_qc": gqc, "summary": summ.__dict__, "thresholds": th})
                 if mp_state is not None:
                     fitstate.update({"provider_raw_bands": mp_state["bands"], "provider_mapping": mp_state["mapping"],
                                      "provider_mapping_log": mp_state["mapping_log"]})
             except Exception as e:
-                st.error(f"Provider comparison failed: {e}")
+                say("INVALID", f"Provider comparison failed: {e}")
 
 # ------------------------------------------------------------------ 4 KB
 with tab_kb:
@@ -657,7 +677,7 @@ with tab_kb:
         st.markdown(f"- {p}")
     st.subheader(f"Active profile: `{profile_key}` ({profile['material']})")
     for n in profile.get("notes", []):
-        st.info(n)
+        say(n, "INFO")
     for c_core, cs in models.items():
         st.markdown(f"#### {c_core}")
         st.dataframe(pd.DataFrame([{"name": x.name, "center": x.center, "bounds": f"{x.bounds[0]}–{x.bounds[1]}",
@@ -673,7 +693,7 @@ with tab_kb:
                                     "reference": KB.reference_text(x.source)} for x in cs]), hide_index=True)
     for c_core, ws in profile.get("core_level_warnings", {}).items():
         for w in ws:
-            st.warning(f"{c_core}: {w}")
+            say("CAUTION", f"{c_core}: {w}")
     if "calibration_status" in KB.raw:
         st.subheader("Calibration status")
         st.json(KB.raw["calibration_status"])
@@ -711,21 +731,21 @@ with tab_rep:
     def _rec(x):
         return None if x is None else json.loads(x.to_json(orient="records"))
     proj["provenance_vocabulary"] = list(PROVENANCE)
-    proj["fits"] = {k: {"metrics": v["fit"].metrics,
-                        "components": json.loads(v["fit"].components.assign(provenance="python_fit").to_json(orient="records")),
-                        "identifiability": _rec(v.get("ident")),
-                        "sensitivity_spans": _rec(v["sensitivity"].spans) if v.get("sensitivity") is not None else None,
-                        "model_overrides": [{**o, "provenance": "user_override"} for o in v["settings"].get("model_overrides") or []],
-                        "diagnostics": v["fit"].diagnostics, "summary": v.get("summary"),
-                        "provider_raw_bands": _rec(v.get("provider_raw_bands")),
-                        "provider_mapping": _rec(v.get("provider_mapping")),
-                        "provider_mapping_log": [{**o, "provenance": "user_override"} for o in v.get("provider_mapping_log") or []]}
-                    for k, v in fits.items()}
+    proj["fits"] = fits_export(fits)
+    if q and q.get("warnings"):
+        proj["warnings_with_severity"] = {s_: [{"severity": sev_classify(w), "text": w} for w in ws] for s_, ws in q["warnings"].items()}
+    if q is not None and q.get("results") is not None:
+        proj["quantification_results"] = _rec(q["results"].assign(provenance="derived_quantity"))
     if q and q.get("provisional") is not None:
         proj["provisional_quantities"] = _rec(q["provisional"])
     if q and q.get("reclass") is not None and len(q["reclass"]):
         proj["role_reclassifications"] = _rec(q["reclass"].assign(provenance="user_override"))
-    sections: list = [("Sample setup", pd.DataFrame([{k: str(v) for k, v in proj["sample_setup"].items()}]).T.reset_index()
+    rel = release_info(KB)
+    sections: list = [("Release / versions", pd.DataFrame([{"app_version": rel["app_version"], "kb_version": rel["kb_version"],
+                                                            "git_commit": rel["git_commit"] or "unavailable",
+                                                            "python": rel["python"], "generated_at": rel["generated_at"]}])),
+                      ("Interpretation levels (not equivalent)", [f"{k}: {v}" for k, v in rel["interpretation_levels"].items()]),
+                      ("Sample setup", pd.DataFrame([{k: str(v) for k, v in proj["sample_setup"].items()}]).T.reset_index()
                        .rename(columns={"index": "field", 0: "value"})),
                       ("Measurement metadata", pd.DataFrame([{k: str(v) for k, v in md.to_dict().items()}]).T.reset_index()
                        .rename(columns={"index": "field", 0: "value"})),
@@ -749,6 +769,7 @@ with tab_rep:
             sections += [(f"Role-grouped QC – {k}", v["grouped_qc"]), (f"Component QC – {k}", v["component_qc"]),
                          (f"QC summary – {k}", [f"{v['summary']['status']}: {v['summary']['message']}"])]
     sections.append(("Literature sources (active profile)", [f"{s}: {KB.reference_text(s)}" for s in sources]))
+    sections.append(("Known scientific open issues", rel["scientific_open_issues"]))
     c1, c2, c3 = st.columns(3)
     c1.download_button("Project/session (.json)", json.dumps(proj, indent=2, ensure_ascii=False, default=str).encode("utf-8"),
                        file_name=f"{sample_name}_xps_project.json", mime="application/json")
@@ -801,7 +822,7 @@ with tab_x:
                 try:
                     raw_by_stem[stem] = MULTIREGION_IMPORTERS[list(MULTIREGION_IMPORTERS)[0]](f.getvalue())
                 except Exception as e:
-                    st.warning(f"{f.name}: {e}")
+                    say("INVALID", f"{f.name}: {e}")
             samples_x = []
             for f in files:
                 stem = str(f).rsplit(".", 1)[0]
@@ -813,7 +834,7 @@ with tab_x:
                 samples_x.append(ds.build_sample(f, bands_x, act_x, KB, meta=meta_row, raw_regions=raw_by_stem.get(stem)))
             st.session_state["xs_samples"] = samples_x
         except Exception as e:
-            st.error(f"Dataset assembly failed: {e}")
+            say("INVALID", f"Dataset assembly failed: {e}")
             samples_x = []
     else:
         samples_x = st.session_state.get("xs_samples") or []
@@ -843,7 +864,7 @@ with tab_x:
         cores_x = sorted({c for s in sel for c in s.mappings})
         core_pick = st.selectbox("Core level for BE / area-fraction tables", cores_x, key="xs_core")
         if core_pick in UNSUPPORTED_REGIONS:
-            st.info(f"{core_pick}: {NO_MODEL_TEXT}; provider peaks shown as imported (paired where applicable).")
+            say("CAUTION", f"{core_pick}: {NO_MODEL_TEXT}; provider peaks shown as imported (paired where applicable).")
         st.markdown(f"#### Fitted BE by component — {core_pick} (provider; provenance provider_paired_doublet / provider_raw_fit)")
         st.dataframe(_w("BE (eV)", core_pick))
         st.markdown(f"#### Area fraction by component — {core_pick}")
@@ -862,6 +883,6 @@ with tab_x:
             st.markdown("#### Unresolved / unmodelled provider components (labels are neutral; no assignment)")
             st.dataframe(unres[["sample", "core_level", "component", "provider_label", "value", "identifiability"]]
                          .rename(columns={"value": "BE (eV)"}), hide_index=True)
-        st.download_button("Comparison long table with provenance (.csv)", csv_bytes(long),
+        st.download_button("Comparison long table with provenance (.csv)", csv_bytes(long.assign(app_version=__version__, kb_version=KB.version)),
                            file_name=f"{st.session_state['xs_name']}_comparison_long.csv")
-        st.download_button("Provisional quantities (.csv)", csv_bytes(qs), file_name=f"{st.session_state['xs_name']}_provisional.csv")
+        st.download_button("Provisional quantities (.csv)", csv_bytes(qs.assign(app_version=__version__, kb_version=KB.version)), file_name=f"{st.session_state['xs_name']}_provisional.csv")

@@ -1,6 +1,6 @@
 # RESUME_AFTER_XPS — restart point after real XPS data acquisition
 
-**Note (2026-11-02):** calibration work continues on branch `calibration/real-xps` (app 1.6.0, KB 1.5.0); see docs/CALIBRATION_LOG.md. Real-data tests: `XPS_SASAKI_DIR=~/Downloads/261030_sasakiXPS`.
+**Note (2026-11-02):** branch `calibration/real-xps` holds the v1.6.0 release candidate (app 1.6.0, KB 1.5.0); see README.md, docs/CALIBRATION_LOG.md and release/release_metadata_v1.6.0.json. Real-data tests: set `XPS_SASAKI_DIR=/path/to/private/provider_folder`.
 
 **Frozen state:** git tag `v1.2.0-precalibration` (commit message: *Freeze literature-based XPS analyzer before real-data calibration*), 2026-10-16.
 **Status:** the literature-based scientific specification is final for now. **Until calibration with real data,
@@ -58,7 +58,7 @@ cd ~/Desktop/mxene-xps-analyzer
 git status                                   # confirm no uncommitted changes
 git describe --tags                          # confirm v1.2.0-precalibration
 source .venv/bin/activate                    # if missing: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
-XPS_LEGACY_WORKBOOK=~/Downloads/mxene_surface_functional_group_quant_template_v2.xlsx python -m pytest -q   # expect 97 passed
+XPS_LEGACY_WORKBOOK=/path/to/private/legacy_workbook.xlsx python -m pytest -q   # expect 97 passed
 git switch -c calibration/real-xps           # do calibration work on a separate branch
 ```
 

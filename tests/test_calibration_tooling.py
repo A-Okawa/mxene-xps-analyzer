@@ -210,7 +210,7 @@ def test_app_unsupported_region_and_new_tab():
     sb = next(s for s in at.selectbox if s.label == "Core level")
     sb.select("Cl 2p").run()
     assert not at.exception
-    assert any(NO_MODEL_TEXT in e.value for e in at.error)
+    assert any(NO_MODEL_TEXT in w.value and "CAUTION" in w.value for w in at.warning)   # not an error: nothing is wrong
     assert next(b for b in at.button if b.label == "Run Python fit").disabled
 
 

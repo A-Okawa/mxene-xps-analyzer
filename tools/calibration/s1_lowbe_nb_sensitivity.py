@@ -1,7 +1,7 @@
 """Sensitivity of the Sample-1 low-BE Nb 3d5/2 feature (~201.8 eV) — calibration candidate only (KB unchanged).
 
 Usage:
-  XPS_SASAKI_DIR=~/Downloads/261030_sasakiXPS PYTHONPATH=src python -I tools/calibration/s1_lowbe_nb_sensitivity.py OUT_DIR
+  XPS_SASAKI_DIR=/path/to/private/provider_folder PYTHONPATH=src python -I tools/calibration/s1_lowbe_nb_sensitivity.py OUT_DIR
 
 Candidate (script-local, never written to the KB): Nb_metal_like / unresolved_low_BE_Nb, confidence low,
 source_type = calibration_observation (provider band at 201.80 eV, 3.6 % of Nb 3d in sample 1).

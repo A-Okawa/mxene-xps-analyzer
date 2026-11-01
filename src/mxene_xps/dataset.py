@@ -62,10 +62,15 @@ def parse_atomic_concentration(text: str, origin: str = "") -> pd.DataFrame:
 def read_provider_report(data: bytes, name: str = "") -> tuple[pd.DataFrame, pd.DataFrame]:
     bands = read_multipak_provider(data, name)
     acts = []
-    if data[:2] == b"PK":
+    if isinstance(data, bytes) and data[:2] == b"PK":
         for slide, txt in pptx_slide_texts(data):
             if "Atomic Concentration Table" in txt:
                 acts.append(parse_atomic_concentration(txt, origin=f"{name} slide {slide}"))
+    else:
+        text = data.decode("utf-8-sig", errors="replace") if isinstance(data, bytes) else data
+        for block in re.split(r"(?=File Information)", text):
+            if "Atomic Concentration Table" in block:
+                acts.append(parse_atomic_concentration(block, origin=name))
     act = pd.concat(acts, ignore_index=True) if acts else pd.DataFrame(
         columns=["origin", "data_file", "comment", "region", "core_level", "RSF", "at_percent", "provenance", "source_detail"])
     return bands, act

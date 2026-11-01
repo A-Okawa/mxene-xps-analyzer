@@ -53,7 +53,7 @@ def project_dict(setup: SampleSetup, md: MeasurementMetadata, evidence: list[Ort
     def df(x):
         return None if x is None else json.loads(x.to_json(orient="records"))
     return {
-        "app": "mxene-xps-analyzer", "project_schema": 1,
+        "app": "mxene-xps-analyzer", "project_schema": 2, "release": _release(kb_version),
         "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "kb_version": kb_version, "profile": profile_key,
         "sample_setup": asdict(setup), "measurement_metadata": md.to_dict(),
@@ -100,6 +100,42 @@ INTERPRETATION_STATUS = ("chemical interpretation NOT validated: component roles
                          "calibration candidates; no orthogonal evidence has validated them.")
 
 
+def fits_export(fits: dict) -> dict:
+    """JSON-ready export of session fits; every value keeps its provenance."""
+    def rec(x):
+        return None if x is None else json.loads(x.to_json(orient="records"))
+    out = {}
+    for k, v in (fits or {}).items():
+        fr = v["fit"]
+        sres = v.get("sensitivity")
+        out[k] = {
+            "settings": {kk: vv for kk, vv in v.get("settings", {}).items() if kk != "model_overrides"},
+            "metrics": fr.metrics,
+            "components": rec(fr.components.assign(provenance="python_fit")),
+            "diagnostics": [{"severity": _sev(d), "text": d} for d in fr.diagnostics],
+            "identifiability": rec(v.get("ident")),
+            "sensitivity": None if sres is None else {
+                "alternatives": rec(sres.table.assign(provenance="python_fit")),
+                "fractions": rec(sres.fractions.reset_index()),
+                "derived": rec(sres.derived.reset_index()) if len(sres.derived) else [],
+                "spans": rec(sres.spans.assign(provenance="derived_quantity")) if len(sres.spans) else []},
+            "model_overrides": [{**o, "provenance": "user_override"} for o in v.get("settings", {}).get("model_overrides") or []],
+            "provider_raw_bands": rec(v.get("provider_raw_bands")),
+            "provider_mapping": rec(v.get("provider_mapping")),
+            "provider_mapping_log": [{**o, "provenance": "user_override"} for o in v.get("provider_mapping_log") or []],
+            "component_qc": rec(v["component_qc"].assign(provenance_vendor="provider", provenance_python="python_fit"))
+            if v.get("component_qc") is not None else None,
+            "grouped_qc": rec(v["grouped_qc"].assign(provenance="derived_quantity")) if v.get("grouped_qc") is not None else None,
+            "qc_summary": v.get("summary"),
+        }
+    return out
+
+
+def _sev(text):
+    from .severity import classify
+    return classify(text)
+
+
 def calibration_summary(dataset: str, kb, commit: str | None, fits: dict, samples: list | None = None,
                         sensitivity: dict | None = None, overrides: dict | None = None) -> dict:
     """Machine-readable calibration summary.
@@ -109,14 +145,17 @@ def calibration_summary(dataset: str, kb, commit: str | None, fits: dict, sample
     sensitivity: {key: SensitivityResult}.
     """
     from .provenance import start_value_provenance
+    from .release import release_info
     cal = kb.raw.get("calibration_status", {})
     out = {
         "dataset": dataset, "kb_version": kb.version, "git_commit": commit,
+        "release": release_info(kb, commit=commit),
         "frozen_scientific_state": {
             "nb3d_suboxide_like_validated": cal.get("nb3d_suboxide_like_validated"),
             "d4_nb3d_dSO_calibration_sensitive": cal.get("d4_nb3d_dSO_calibration_sensitive"),
             "delta_finalization_blocked_by": cal.get("delta_finalization_blocked_by", []),
         },
+        "levels_not_equivalent": ["fit succeeded", "statistically identifiable", "chemically validated"],
         "fits": [], "model_sensitive": [], "unresolved_components": [], "user_overrides": overrides or {},
         "references_used": {}, "samples": [],
     }
@@ -140,7 +179,7 @@ def calibration_summary(dataset: str, kb, commit: str | None, fits: dict, sample
             "fit_succeeded": bool(fr.metrics.get("success")), "chemical_interpretation_validated": False,
             "interpretation_status": INTERPRETATION_STATUS,
             "metrics": {k: fr.metrics[k] for k in ("RMSE", "R2", "AIC", "BIC", "n_points")},
-            "qc_summary": f.get("summary"), "qc_warnings": list(fr.diagnostics),
+            "qc_summary": f.get("summary"), "qc_warnings": [{"severity": _sev(d), "text": d} for d in fr.diagnostics],
             "identifiability": None if ident is None else ident[["component", "status", "status_reasons",
                                                                   "strongly_anticorrelated_with"]].to_dict("records"),
             "model_overrides": f["settings"].get("model_overrides") or [],
@@ -153,7 +192,7 @@ def calibration_summary(dataset: str, kb, commit: str | None, fits: dict, sample
             out["model_sensitive"].append({"fit": key, **r})
     for s in samples or []:
         out["samples"].append({"sample": s.sample, "structure": s.structure, "profile": s.profile, "meta": s.meta,
-                               "notes": s.notes, "quant_warnings": s.quant_warnings,
+                               "notes": s.notes, "quant_warnings": [{"severity": _sev(w), "text": w} for w in s.quant_warnings],
                                "provisional": json.loads(s.provisional.to_json(orient="records")) if len(s.provisional) else [],
                                "unresolved_provider_components": [
                                    {"core": core, "label": r.comparison_label, "provider_label": r.provider_label,
@@ -167,8 +206,12 @@ def calibration_summary(dataset: str, kb, commit: str | None, fits: dict, sample
 
 
 def calibration_summary_html(summary: dict) -> str:
-    secs: list = [("Dataset / versions", pd.DataFrame([{"dataset": summary["dataset"], "kb_version": summary["kb_version"],
-                                                        "git_commit": summary["git_commit"] or "unavailable"}])),
+    rel = summary.get("release", {})
+    secs: list = [("Dataset / versions", pd.DataFrame([{"dataset": summary["dataset"], "app_version": rel.get("app_version"),
+                                                        "kb_version": summary["kb_version"],
+                                                        "git_commit": summary["git_commit"] or "unavailable",
+                                                        "python": rel.get("python"), "generated_at": rel.get("generated_at")}])),
+                  ("Interpretation levels (not equivalent)", [f"{k}: {v}" for k, v in rel.get("interpretation_levels", {}).items()]),
                   ("Frozen scientific state", [f"{k}: {v}" for k, v in summary["frozen_scientific_state"].items()]),
                   ("Fit succeeded vs chemical interpretation validated",
                    [f"{f['key']}: fit succeeded = {f['fit_succeeded']}; chemical interpretation validated = "
@@ -177,7 +220,7 @@ def calibration_summary_html(summary: dict) -> str:
         secs.append((f"Fit {f['key']} — metrics / settings", pd.DataFrame([{**f["metrics"], **{k: str(v) for k, v in f["settings"].items()}}])))
         if f["qc_summary"]:
             secs.append((f"Provider-vs-Python QC — {f['key']}", [f"{f['qc_summary'].get('status')}: {f['qc_summary'].get('message')}"]))
-        secs.append((f"QC warnings — {f['key']}", f["qc_warnings"]))
+        secs.append((f"QC warnings — {f['key']}", [f"[{w['severity']}] {w['text']}" for w in f["qc_warnings"]]))
         if f["identifiability"]:
             secs.append((f"Identifiability — {f['key']}", pd.DataFrame(f["identifiability"])))
         if f["model_overrides"] or f["provider_mapping_log"]:
@@ -194,4 +237,12 @@ def calibration_summary_html(summary: dict) -> str:
     secs.append(("Literature / transferred references used",
                  pd.DataFrame([{"key": k, **{kk: (", ".join(vv) if isinstance(vv, list) else vv) for kk, vv in v.items()}}
                                for k, v in summary["references_used"].items()]) if summary["references_used"] else ["none"]))
+    secs.append(("Known scientific open issues", rel.get("scientific_open_issues", [])))
     return html_report(f"Calibration summary – {summary['dataset']}", secs)
+
+
+def _release(kb_version):
+    from .release import release_info
+    r = release_info(None)
+    r["kb_version"] = kb_version
+    return r

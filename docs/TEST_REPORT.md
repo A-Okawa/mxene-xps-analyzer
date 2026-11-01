@@ -1,3 +1,5 @@
+> **Historical report (v1.2.0).** Current test counts and environment: `release/release_metadata_v1.6.0.json`.
+
 # Test report — v1.2.0 (2026-10-16)
 
 ## Environments

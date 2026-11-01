@@ -85,3 +85,7 @@ htmlcov/
 
 # metadata templates contain no measurement data
 !templates/*.csv
+!examples/synthetic_demo/*.csv
+!examples/synthetic_demo/*.txt
+!examples/synthetic_demo/*.json
+!release/*.json

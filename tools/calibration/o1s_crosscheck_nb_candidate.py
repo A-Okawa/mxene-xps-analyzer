@@ -1,7 +1,7 @@
 """O 1s cross-check of the Nb 3d ~205.6-205.9 eV calibration candidate (Nb_suboxide_like). KB is not changed.
 
 Usage:
-  XPS_SASAKI_DIR=~/Downloads/261030_sasakiXPS PYTHONPATH=src python -I tools/calibration/o1s_crosscheck_nb_candidate.py OUT_DIR [D4_GRID_CSV]
+  XPS_SASAKI_DIR=/path/to/private/provider_folder PYTHONPATH=src python -I tools/calibration/o1s_crosscheck_nb_candidate.py OUT_DIR [D4_GRID_CSV]
 
 Question: does the O 1s spectrum contain the oxide-type O that a sub-oxide (NbOx) assignment of the candidate
 requires, or not (which would favour the alternative: termination-modified framework Nb)?

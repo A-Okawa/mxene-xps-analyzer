@@ -1,0 +1,4 @@
+sample_id,provider_file,nominal_composition,phase,synthesis_route,etchant,treatment,treatment_temperature_C,measurement_date,be_reference_method,instrument_operator_notes,sputtered,comments
+1_Nb2AlC,SYNdemo201,Nb2AlC,MAX,synthetic,,,,,synthetic (none),,no,SYNTHETIC demo data - not a measurement
+2_Nb2CTx,SYNdemo202,Nb2CTx,MXene,synthetic,,,,,synthetic (none),,no,SYNTHETIC demo data - not a measurement
+3_(Nb0.6Ti0.4)2CTx,SYNdemo203,(Nb0.6Ti0.4)2CTx,MXene,synthetic,,,,,synthetic (none),,no,SYNTHETIC demo data - not a measurement

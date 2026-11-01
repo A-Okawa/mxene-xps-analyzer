@@ -12,7 +12,7 @@ FIELDS = ("sample_id", "provider_file", "nominal_composition", "phase", "synthes
 PHASES = ("MAX", "MXene")
 FIELD_HELP = {
     "sample_id": "free label, e.g. '4_Nb2CTx'; matches the provider 'Data File Comment' when possible",
-    "provider_file": "provider data-file stem, e.g. 'sasaki108' (links provider fits and raw files)",
+    "provider_file": "provider data-file stem, e.g. 'sample108' (links provider fits and raw files)",
     "nominal_composition": "e.g. Nb2AlC, (Nb0.9Ti0.1)2AlC, Nb2CTx, (Nb0.6Ti0.4)2CTx",
     "phase": "MAX or MXene",
     "treatment_temperature_C": "number or blank",

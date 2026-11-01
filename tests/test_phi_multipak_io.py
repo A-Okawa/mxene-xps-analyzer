@@ -1,6 +1,6 @@
 """Calibration phase 1 (I/O only): PHI multi-region split, single-region range guard, MultiPak provider import.
 
-Synthetic text only; the real provider data are private.  Set XPS_SASAKI_DIR to the 261030_sasakiXPS folder to
+Synthetic text only; the real provider data are private.  Set XPS_SASAKI_DIR to the private provider-data folder to
 run the optional real-data checks.
 """
 import os

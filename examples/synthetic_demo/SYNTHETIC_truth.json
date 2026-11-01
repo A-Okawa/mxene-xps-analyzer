@@ -1,0 +1,325 @@
+{
+ "note": "synthetic ground truth (KB start values + noise)",
+ "samples": {
+  "1_Nb2AlC": {
+   "C 1s": [
+    {
+     "component": "C_MAX",
+     "center": 282.4513853990487,
+     "fwhm": 0.9,
+     "area_primary": 3970.3479836132856
+    },
+    {
+     "component": "C_C",
+     "center": 285.03591922444497,
+     "fwhm": 1.4,
+     "area_primary": 2362.6923157946594
+    },
+    {
+     "component": "C_O",
+     "center": 286.67259380419284,
+     "fwhm": 1.75,
+     "area_primary": 2989.034964781765
+    },
+    {
+     "component": "COO",
+     "center": 288.8150407783327,
+     "fwhm": 1.5,
+     "area_primary": 1284.4412055463686
+    }
+   ],
+   "O 1s": [
+    {
+     "component": "O_oxide",
+     "center": 530.5801352273945,
+     "fwhm": 1.4,
+     "area_primary": 3644.4905280425824
+    },
+    {
+     "component": "O_OH_ads",
+     "center": 532.005255058488,
+     "fwhm": 1.6,
+     "area_primary": 2420.2232816832893
+    },
+    {
+     "component": "O_Al2O3",
+     "center": 532.7957931606215,
+     "fwhm": 1.6,
+     "area_primary": 1295.5027468384046
+    }
+   ],
+   "Nb 3d": [
+    {
+     "component": "Nb_MAX",
+     "center": 202.90519430467796,
+     "fwhm": 1.1,
+     "area_primary": 3306.7962124079086
+    },
+    {
+     "component": "Nb_MAX_2nd",
+     "center": 203.76551376959497,
+     "fwhm": 1.8,
+     "area_primary": 1088.760719623393
+    },
+    {
+     "component": "Nb_suboxide_like",
+     "center": 205.8454984401156,
+     "fwhm": 1.5,
+     "area_primary": 1544.8935322073908
+    },
+    {
+     "component": "Nb2O5",
+     "center": 206.82128840226278,
+     "fwhm": 1.5,
+     "area_primary": 3374.7493448527594
+    }
+   ],
+   "Al 2p": [
+    {
+     "component": "Al_MAX",
+     "center": 72.40452401222726,
+     "fwhm": 1.2,
+     "area_primary": 1401.1192942376113
+    },
+    {
+     "component": "Al_oxide",
+     "center": 74.40250378117199,
+     "fwhm": 1.6,
+     "area_primary": 1833.0490364694986
+    }
+   ]
+  },
+  "2_Nb2CTx": {
+   "C 1s": [
+    {
+     "component": "C_MXene",
+     "center": 282.4416757152552,
+     "fwhm": 0.85,
+     "area_primary": 1908.1199997559754
+    },
+    {
+     "component": "C_C",
+     "center": 285.06784711567906,
+     "fwhm": 1.4,
+     "area_primary": 3410.4164274446434
+    },
+    {
+     "component": "CHx",
+     "center": 285.8206579678363,
+     "fwhm": 1.3,
+     "area_primary": 1761.3631718751858
+    },
+    {
+     "component": "C_O",
+     "center": 286.7010106488671,
+     "fwhm": 1.75,
+     "area_primary": 2603.234618378475
+    },
+    {
+     "component": "COO",
+     "center": 288.75189302851993,
+     "fwhm": 1.5,
+     "area_primary": 1479.676177304783
+    }
+   ],
+   "O 1s": [
+    {
+     "component": "Nb2O5_O",
+     "center": 530.4777656847397,
+     "fwhm": 1.25,
+     "area_primary": 1809.2942504992056
+    },
+    {
+     "component": "Nb_O_term",
+     "center": 531.1315582184507,
+     "fwhm": 1.5,
+     "area_primary": 2479.174227010645
+    },
+    {
+     "component": "Nb_OH_term",
+     "center": 532.5177660028987,
+     "fwhm": 1.5,
+     "area_primary": 2583.3713966786336
+    },
+    {
+     "component": "H2O_ads",
+     "center": 533.5155744693416,
+     "fwhm": 1.6,
+     "area_primary": 1287.9086424936784
+    }
+   ],
+   "Nb 3d": [
+    {
+     "component": "Nb_MXene",
+     "center": 204.83886549360471,
+     "fwhm": 1.1,
+     "area_primary": 3769.097641479538
+    },
+    {
+     "component": "Nb_suboxide_like",
+     "center": 205.79707850383517,
+     "fwhm": 1.5,
+     "area_primary": 1183.8476091357147
+    },
+    {
+     "component": "Nb2O5",
+     "center": 207.23517914474868,
+     "fwhm": 1.7,
+     "area_primary": 3038.040679103206
+    },
+    {
+     "component": "NbF5_like",
+     "center": 209.16223070363114,
+     "fwhm": 1.0,
+     "area_primary": 150.0
+    }
+   ],
+   "F 1s": [
+    {
+     "component": "F_lowBE_unresolved",
+     "center": 682.664605562331,
+     "fwhm": 1.5,
+     "area_primary": 2573.821416296894
+    },
+    {
+     "component": "Nb_F_term",
+     "center": 684.6963607318772,
+     "fwhm": 1.45,
+     "area_primary": 2536.6677270773644
+    },
+    {
+     "component": "NbF_residue",
+     "center": 686.1601858333338,
+     "fwhm": 1.6,
+     "area_primary": 2088.2348687256977
+    }
+   ]
+  },
+  "3_(Nb0.6Ti0.4)2CTx": {
+   "C 1s": [
+    {
+     "component": "C_MXene",
+     "center": 282.12201635818724,
+     "fwhm": 0.9,
+     "area_primary": 3299.0177581592516
+    },
+    {
+     "component": "C_C",
+     "center": 284.6307707397062,
+     "fwhm": 1.7,
+     "area_primary": 1079.823591543764
+    },
+    {
+     "component": "C_O",
+     "center": 286.48023139093397,
+     "fwhm": 1.8,
+     "area_primary": 1814.422383621509
+    },
+    {
+     "component": "COO",
+     "center": 288.7330941348142,
+     "fwhm": 2.0,
+     "area_primary": 2778.3982052208557
+    }
+   ],
+   "O 1s": [
+    {
+     "component": "O_low",
+     "center": 530.0920216179721,
+     "fwhm": 1.1,
+     "area_primary": 3086.449638854159
+    },
+    {
+     "component": "O_mid",
+     "center": 530.9790425326813,
+     "fwhm": 1.7,
+     "area_primary": 1399.878042150519
+    },
+    {
+     "component": "OH_like",
+     "center": 532.4574358813566,
+     "fwhm": 1.6,
+     "area_primary": 3160.004943856155
+    },
+    {
+     "component": "O_adsorbate",
+     "center": 533.8247665396401,
+     "fwhm": 1.8,
+     "area_primary": 1455.684827529716
+    }
+   ],
+   "Nb 3d": [
+    {
+     "component": "Nb_MXene",
+     "center": 204.86090694322047,
+     "fwhm": 1.4,
+     "area_primary": 2361.2319918604444
+    },
+    {
+     "component": "Nb_suboxide_like",
+     "center": 205.7038712139376,
+     "fwhm": 1.5,
+     "area_primary": 3105.987344050881
+    },
+    {
+     "component": "Nb2O5",
+     "center": 207.51071537112665,
+     "fwhm": 1.5,
+     "area_primary": 3180.27232463882
+    },
+    {
+     "component": "NbF5_like",
+     "center": 209.30798064544544,
+     "fwhm": 1.3,
+     "area_primary": 150.0
+    }
+   ],
+   "Ti 2p": [
+    {
+     "component": "Ti_lowBE",
+     "center": 454.87569746556073,
+     "fwhm": 1.1,
+     "area_primary": 3183.488824509355
+    },
+    {
+     "component": "Ti_midBE",
+     "center": 455.8157221795602,
+     "fwhm": 1.6,
+     "area_primary": 2105.281722431862
+    },
+    {
+     "component": "Ti_highBE",
+     "center": 456.7926482034101,
+     "fwhm": 1.7,
+     "area_primary": 3943.9275553757357
+    },
+    {
+     "component": "Ti_oxide",
+     "center": 459.16104117661905,
+     "fwhm": 1.9,
+     "area_primary": 2383.3998252267975
+    }
+   ],
+   "F 1s": [
+    {
+     "component": "F_lowBE_unresolved",
+     "center": 682.7043163577301,
+     "fwhm": 1.5,
+     "area_primary": 3761.2985969524266
+    },
+    {
+     "component": "F_MXene",
+     "center": 684.8606980827636,
+     "fwhm": 1.5,
+     "area_primary": 2619.4109596111725
+    },
+    {
+     "component": "F_residue",
+     "center": 686.2762735501734,
+     "fwhm": 1.8,
+     "area_primary": 2057.9941856606792
+    }
+   ]
+  }
+ }
+}
