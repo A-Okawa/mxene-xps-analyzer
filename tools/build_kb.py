@@ -624,6 +624,100 @@ def apply_max_literature(kb: dict) -> None:
     }
 
 
+# ======================================================================================================================
+# KB 1.5.0 (2026-11-02): citation for the Nb2AlC values + splitting decisions (user instructions).
+#  - UserNb2AlC2026 (citation pending) -> Su2024JMCC (verified; SI Fig. S7). confidence medium: the SI is not primarily an
+#    Nb2AlC XPS study and does not clearly document the BE reference.
+#  - Nb 3d fit constraint stays 2.8 eV; the implied 2.6 eV is stored only as a literature-reported splitting.
+#  - Provider 2.72 eV (Nb 3d) and 6.17 eV (Ti 2p) are stored only as calibration observations.
+#  - nbti_211_max ONLY: transferred Ti-C dSO 5.8 -> 6.00 eV (Naslund2020 Ti3AlC2), not independently validated.
+#  - No MXene profile is touched.
+# ======================================================================================================================
+SU2024 = {
+    "Su2024JMCC": {
+        "title": "MXene quantum dot functionalized bimetallic MOFs as a label-free aptasensor for highly sensitive detection of exosomes",
+        "authors": "X. Su, Q. You, P. Wang, L. Li, M. Ge, L. Yang, W.-F. Dong, Z. Chang",
+        "journal": "J. Mater. Chem. C", "volume": 12, "pages": "8561-8568", "year": 2024, "doi": "10.1039/D4TC01594K",
+        "location": "Supporting Information, Fig. S7 (Nb2AlC XPS)",
+        "citation_status": "verified",
+        "verification": ("Citation and SI Fig. S7 values supplied by the user (2026-11-02); bibliographic record cross-checked "
+                         "against the RSC article page. The SI PDF itself was not machine-read in this session."),
+        "be_reference": "not clearly documented in the SI",
+        "confidence": "medium",
+        "use": ("Nb2AlC: C-Nb C 1s 282.5 eV; Nb-C Nb 3d5/2 202.9 / 3d3/2 205.5 eV; Nb(V) 206.8 / 209.6 eV. Confidence medium: "
+                "the SI is not primarily an Nb2AlC XPS study and the BE-reference method is not clearly documented."),
+    }
+}
+SPLIT_IMPLIED = "implied by the reported 3d5/2 and 3d3/2 positions (literature-reported, NOT used as a fit constraint)"
+
+
+def _walk_refs(prof):
+    for comps in prof["fit_models"].values():
+        for c in comps:
+            for key in ("literature_reference", "transferred_reference"):
+                for r in c.get(key) or []:
+                    yield c, r
+
+
+def apply_su2024_and_splits(kb: dict) -> None:
+    kb["kb_version"] = "1.5.0"
+    kb["references"].pop("UserNb2AlC2026", None)
+    kb["references"].update(SU2024)
+    for key in ("nb2alc_max", "nbti_211_max"):
+        prof = kb["profiles"][key]
+        for c, r in _walk_refs(prof):
+            if r.get("source") == "UserNb2AlC2026":
+                r["source"] = "Su2024JMCC"
+                r["citation_status"] = "verified"
+                r["location"] = "SI Fig. S7"
+                if "implied_split" in r:
+                    r["literature_split"] = r.pop("implied_split")
+                    r["literature_split_basis"] = SPLIT_IMPLIED
+        for comps in prof["fit_models"].values():
+            for c in comps:
+                if c.get("source") == "UserNb2AlC2026":
+                    c["source"] = "Su2024JMCC"
+                    c["provenance"] = c["provenance"].replace("UserNb2AlC2026", "Su2024JMCC")
+                if c["name"] in ("Nb_MAX", "Nb2O5", "Nb_MAX_2nd"):
+                    c["split_basis"] = ("KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider "
+                                        "values are stored separately and not used as the constraint")
+                    for o in c.get("calibration_observations") or []:
+                        o["split_obs"] = 2.72
+                c["interpretation"] = c["interpretation"].replace("(Nb2AlC reference ", "(Nb2AlC reference, Su2024JMCC SI Fig. S7: ")
+                c["interpretation"] = c["interpretation"].replace("Carbide C-Nb of Nb2AlC (reference 282.5 eV).",
+                                                                  "Carbide C-Nb of Nb2AlC (Su2024JMCC SI Fig. S7: 282.5 eV).")
+        prof["notes"] = [n.replace("Nb 3d / C 1s Nb2AlC values are user-supplied with the citation PENDING",
+                                   "Nb 3d / C 1s Nb2AlC values from Su2024JMCC SI Fig. S7 (verified citation; confidence medium, BE reference not documented)")
+                          .replace("Nb2AlC (citation pending)", "Nb2AlC (Su2024JMCC)") for n in prof["notes"]]
+    ti = next(c for c in kb["profiles"]["nbti_211_max"]["fit_models"]["Ti 2p"] if c["name"] == "Ti_MAX")
+    ti["split"] = 6.00
+    ti["split_basis"] = ("transferred: Naslund2020 Ti3AlC2 Ti-C dSO 6.00 eV (direct MAX literature); "
+                         "not independently validated for (Nb,Ti)2AlC")
+    ti["provenance"] += " dSO 5.8 -> 6.00 eV in KB 1.5.0 (transferred from Naslund2020 Ti3AlC2)."
+    for o in ti.get("calibration_observations") or []:
+        o["split_obs"] = 6.17
+        o["split_obs_note"] = "provider dSO from the sample whose Ti 2p1/2 was fitted (Nb 3s overlap); observation only"
+    tox = next(c for c in kb["profiles"]["nbti_211_max"]["fit_models"]["Ti 2p"] if c["name"] == "Ti_oxide")
+    tox["split_basis"] = "KB Ti oxide convention 5.7 eV (unchanged); Naslund2020 TiO2 5.8 eV recorded in transferred_reference"
+    for c in kb["profiles"]["nbti_211_max"]["fit_models"]["Nb 3d"]:
+        pass
+    kb["profiles"]["nbti_211_max"]["notes"] = [
+        n.replace("Ti3AlC2 Ti-C 6.00 eV)", "Ti3AlC2 Ti-C 6.00 eV, which IS used as the transferred Ti_MAX constraint in nbti_211_max)")
+        for n in kb["profiles"]["nbti_211_max"]["notes"]]
+    d4 = next(d for d in kb["spec_discrepancies"] if d["id"] == "D4")
+    d4["decision"] += (" 2026-11-02 (KB 1.5.0): Nb 3d constraint stays 2.8 eV in all profiles; the Nb2AlC 2.6 eV implied by "
+                       "Su2024JMCC is a literature-reported splitting only; provider 2.72 eV and 6.17 eV are calibration "
+                       "observations; nbti_211_max Ti_MAX uses the transferred Naslund2020 Ti3AlC2 value 6.00 eV; MXene Ti 2p "
+                       "splittings unchanged.")
+    kb["calibration_status"]["max_profiles"]["nb2alc_max"] = ("literature (Nb 3d / C 1s Su2024JMCC SI Fig. S7, verified, confidence "
+                                                             "medium; Al 2p Naslund2020); O 1s, Al oxide, contamination C transferred")
+    kb["changelog"].append({"version": "1.5.0", "date": "2026-11-02", "note": (
+        "Nb2AlC citation verified: UserNb2AlC2026 -> Su2024JMCC (J. Mater. Chem. C 12 (2024) 8561, SI Fig. S7; confidence medium). "
+        "Splitting layers: literature-reported (Nb2AlC 2.6 eV, stored only), fit constraint (Nb 3d 2.8 eV unchanged; "
+        "nbti_211_max Ti_MAX 5.8 -> 6.00 eV transferred from Naslund2020), provider observations (2.72, 6.17 eV). "
+        "MXene profiles unchanged.")})
+
+
 def main() -> None:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     kb = copy.deepcopy(seed)
@@ -683,6 +777,7 @@ def main() -> None:
     apply_calibration_phase2(kb)
     apply_calibration_d4_o1s(kb)
     apply_max_literature(kb)
+    apply_su2024_and_splits(kb)
     OUT.write_text(json.dumps(kb, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT}")
 

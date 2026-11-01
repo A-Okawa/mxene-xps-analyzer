@@ -22,6 +22,7 @@ def test_nb2alc_literature_values_as_specified(kb):
     cm = _c(kb, "nb2alc_max", "C 1s", "C_MAX")
     for comp, center, sec in ((nb, 202.9, 205.5), (ox, 206.8, 209.6), (cm, 282.5, None)):
         assert comp.source_type == "literature" and comp.center == center
+        assert comp.source == "Su2024JMCC" and comp.confidence == "medium"
         (ref,) = comp.literature_reference
         assert ref["reference_type"] == "literature_reference" and ref["material"].startswith("Nb2AlC")
         assert ref["center"] == center and ref["source"] == comp.source
@@ -45,14 +46,19 @@ def test_literature_citation_metadata_preserved(kb):
         assert ref["doi"] and ref["year"] and ref["journal"] and ref["be_reference"]
     assert kb.references["Naslund2020"]["doi"] == "10.1021/acs.jpcc.0c07413"
     assert kb.references["Greczynski2018Carbides"]["doi"] == "10.1016/j.apsusc.2017.11.264"
-    user = kb.references["UserNb2AlC2026"]
-    assert user["doi"] is None and user["citation_status"] == "pending"     # never a fabricated citation
+    assert "UserNb2AlC2026" not in kb.references
+    su = kb.references["Su2024JMCC"]
+    assert su["doi"] == "10.1039/D4TC01594K" and su["journal"] == "J. Mater. Chem. C" and su["year"] == 2024
+    assert su["volume"] == 12 and su["pages"] == "8561-8568" and "Fig. S7" in su["location"]
+    assert su["citation_status"] == "verified" and su["confidence"] == "medium"
+    assert "not clearly documented" in su["be_reference"]
     for p in MAX:
         for c in _all(kb, p):
             for r in (c.literature_reference or []) + (c.transferred_reference or []):
                 assert r["source"] in kb.references
-                if r["source"] == "UserNb2AlC2026":
-                    assert r.get("citation_status") == "pending"
+                assert r.get("citation_status") != "pending"
+                if r["source"] == "Su2024JMCC":
+                    assert r["citation_status"] == "verified"
 
 
 def test_al2p_nb2alc_from_naslund_shift(kb):
@@ -127,9 +133,53 @@ def test_candidate_d4_and_splittings_unchanged(kb):
     assert cs["nb3d_suboxide_like_validated"] is False and cs["d4_nb3d_dSO_calibration_sensitive"] is True
     for p in MAX:
         assert {c.split for c in kb.components(p, "Nb 3d")} == {2.8}
-    assert {c.split for c in kb.components("nbti_211_max", "Ti 2p")} == {5.8, 5.7}
+    assert {c.split for c in kb.components("nbti_211_max", "Ti 2p")} == {6.0, 5.7}   # KB 1.5.0 transferred Ti-C
 
 
 def test_mxene_profiles_untouched_by_max_step(kb):
     nb = _c(kb, "nb2c_halim", "Nb 3d", "Nb_MXene")
     assert (nb.center, nb.bounds, nb.source_type) == (204.8, (204.1, 205.6), None)
+
+
+# ------------------------------------------------------------------ KB 1.5.0: three kinds of splitting
+def test_literature_reported_splitting_is_not_a_constraint(kb):
+    """1. Literature-reported splitting: Nb2AlC 2.6 eV (Su2024JMCC) is stored, but the fit constraint stays 2.8 eV."""
+    nb = _c(kb, "nb2alc_max", "Nb 3d", "Nb_MAX")
+    (ref,) = nb.literature_reference
+    assert ref["literature_split"] == pytest.approx(2.6)
+    assert ref["secondary"]["center"] - ref["center"] == pytest.approx(2.6)
+    assert "NOT used as a fit constraint" in ref["literature_split_basis"]
+    assert nb.split == 2.8 and "2.8 eV" in nb.split_basis
+    ox = _c(kb, "nb2alc_max", "Nb 3d", "Nb2O5")
+    assert ox.literature_reference[0]["literature_split"] == pytest.approx(2.8) and ox.split == 2.8
+    for p in kb.profile_keys:                                       # no Nb doublet is constrained to 2.6 or 2.72
+        assert {c.split for c in kb.fit_models(p).get("Nb 3d", [])} <= {2.8}
+
+
+def test_transferred_fit_constraint_ti_max(kb):
+    """2. Transferred fit constraint: nbti_211_max Ti_MAX dSO = 6.00 eV from Naslund2020 Ti3AlC2 (not validated)."""
+    ti = _c(kb, "nbti_211_max", "Ti 2p", "Ti_MAX")
+    assert ti.split == pytest.approx(6.00) and ti.source_type == "transferred"
+    assert "Naslund2020" in ti.split_basis and "not independently validated for (Nb,Ti)2AlC" in ti.split_basis
+    nas = next(r for r in ti.transferred_reference if r["source"] == "Naslund2020")
+    assert nas["literature_split"] == pytest.approx(6.00) and nas["material"] == "Ti3AlC2"
+    assert _c(kb, "nbti_211_max", "Ti 2p", "Ti_oxide").split == 5.7                # oxide unchanged
+
+
+def test_provider_splittings_are_observations_only(kb):
+    """3. Provider observation: 2.72 eV (Nb 3d) and 6.17 eV (Ti 2p) appear only as calibration observations."""
+    for p in MAX:
+        for name in ("Nb_MAX", "Nb2O5"):
+            c = _c(kb, p, "Nb 3d", name)
+            assert c.split != 2.72
+            assert all(o["split_obs"] == 2.72 and o["reference_type"] == "provider_calibration_observation"
+                       for o in c.calibration_observations)
+    ti = _c(kb, "nbti_211_max", "Ti 2p", "Ti_MAX")
+    assert ti.split != 6.17 and all(o["split_obs"] == 6.17 for o in ti.calibration_observations)
+    allsplits = {c.split for p in kb.profile_keys for cs in kb.fit_models(p).values() for c in cs}
+    assert 6.17 not in allsplits and 2.72 not in allsplits and 2.6 not in allsplits
+
+
+def test_mxene_ti_splittings_unchanged(kb):
+    assert [c.split for c in kb.components("nbti_m2c_defect_aware", "Ti 2p")] == [5.8, 5.8, 5.7, 5.6]
+    assert [c.split for c in kb.components("ti3c2_brette", "Ti 2p")] == [5.8, 5.8, 5.7, 5.6]

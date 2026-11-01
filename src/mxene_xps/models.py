@@ -98,6 +98,7 @@ class FitComponent:
     transferred_reference: Optional[list] = None
     calibration_observations: Optional[list] = None
     fwhm_basis: Optional[str] = None
+    split_basis: Optional[str] = None                 # provenance of the doublet splitting used as a FIT CONSTRAINT
 
     def __post_init__(self) -> None:
         if self.kind not in ("single", "doublet"):
@@ -148,6 +149,7 @@ class FitComponent:
             alternative_role=d.get("alternative_role"), cross_check=d.get("cross_check"),
             source_type=d.get("source_type"), transferred_reference=d.get("transferred_reference"),
             calibration_observations=d.get("calibration_observations"), fwhm_basis=d.get("fwhm_basis"),
+            split_basis=d.get("split_basis"),
         )
 
     def to_dict(self) -> dict:

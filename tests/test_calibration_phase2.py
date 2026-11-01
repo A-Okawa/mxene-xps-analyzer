@@ -17,7 +17,7 @@ def _c(kb, p, core, name):
 
 
 def test_kb_version_and_status(kb):
-    assert kb.version in ("1.3.1", "1.4.0")
+    assert kb.version in ("1.3.1", "1.4.0", "1.5.0")
     cs = kb.raw["calibration_status"]
     assert cs["nb3d_suboxide_like_validated"] is False
     assert cs["o1s_crosscheck_nb_suboxide_like"]["result"] == "inconclusive"

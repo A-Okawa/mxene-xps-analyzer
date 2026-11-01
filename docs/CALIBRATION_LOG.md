@@ -146,3 +146,25 @@ In all three MAX Nb 3d fits `Nb_suboxide_like` ends on a window edge (205.4 or 2
 - Citation for the user-supplied Nb2AlC values.
 - Literature splittings differ from the KB convention (Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti–C 6.00 eV) — recorded only (D4).
 - Literature for the provider's O 1s ~529.3 eV and Al 2p ~75.3–76.1 eV components.
+
+## Nb2AlC citation and splitting layers (app/KB 1.5.0, 2026-11-02)
+
+**Citation:** `UserNb2AlC2026` (pending) → **`Su2024JMCC`**: X. Su, Q. You, P. Wang, L. Li, M. Ge, L. Yang, W.-F. Dong,
+Z. Chang, *J. Mater. Chem. C* 12 (2024) 8561–8568, doi:10.1039/D4TC01594K, SI Fig. S7 (Nb2AlC: C–Nb 282.5 eV;
+Nb–C 202.9/205.5 eV; Nb(V) 206.8/209.6 eV). `source_type = literature`, `citation_status = verified`,
+**confidence medium** (the SI is not primarily an Nb2AlC XPS study; BE-reference method not clearly documented).
+Bibliographic record cross-checked against the RSC article page; the SI values were supplied by the user (the SI PDF
+was not machine-read in this session).
+
+**Three kinds of splitting, kept apart** (`tests/test_max_literature.py`):
+
+| Kind | Where stored | Values |
+|---|---|---|
+| Literature-reported | `literature_reference[].literature_split` (+ basis) | Nb2AlC Nb–C 2.6 eV (implied), Nb(V) 2.8 eV; Ti3AlC2 Ti–C 6.00 eV |
+| Fit constraint | component `split` + `split_basis` | Nb 3d 2.8 eV everywhere (unchanged); **nbti_211_max Ti_MAX 6.00 eV (transferred, Näslund 2020 Ti3AlC2, not validated for (Nb,Ti)2AlC)**; Ti_oxide 5.7 eV; MXene Ti 2p unchanged |
+| Provider observation | `calibration_observations[].split_obs` | Nb 3d 2.72 eV; Ti 2p 6.17 eV |
+
+Effect of Ti_MAX ΔSO 5.8 → 6.00 eV on the Sasaki MAX Ti 2p spectra: sample 2 (2p3/2-only window) RMSE 42.8 → 43.4,
+ΔAIC +2.0; sample 3 RMSE 120.2 → 125.9, ΔAIC +10.6; Ti_MAX fraction −0.013/−0.014. The fit statistic does not favour
+6.00 eV, but the 2p1/2 side is compromised by Nb 3s, so it is not a valid arbiter; the literature value is kept as
+decided.

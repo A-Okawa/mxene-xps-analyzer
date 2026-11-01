@@ -63,6 +63,8 @@ def _component_line(c: FitComponent) -> str:
          f"start FWHM {c.fwhm:.2f} eV (window {c.fwhm_bounds[0]:.2f}–{c.fwhm_bounds[1]:.2f})")
     if c.kind == "doublet":
         s += f"; ΔSO {c.split:.2f} eV; primary:secondary area ratio {c.ratio_primary_secondary:g}:1"
+        if c.split_basis:
+            s += f" (ΔSO basis: {c.split_basis})"
     s += f"; role = {c.role}"
     if c.assignment_status == "unresolved":
         s += " (UNRESOLVED – please do not assign by BE alone)"

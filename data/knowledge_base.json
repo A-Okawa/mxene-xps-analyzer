@@ -118,11 +118,20 @@
       "be_reference": "ISO-calibrated spectrometer (Au 4f7/2 83.96, Ag 3d5/2 368.21, Cu 2p3/2 932.62 eV)",
       "use": "Binary carbide reference values (TiC, NbC) and their native-oxide lines; supporting/transferred only."
     },
-    "UserNb2AlC2026": {
-      "title": "Nb2AlC XPS reference values supplied by the user on 2026-11-02 (Nb-C 3d5/2 202.9 / 3d3/2 205.5 eV; Nb oxide 206.8 / 209.6 eV; C-Nb 282.5 eV)",
-      "doi": null,
-      "citation_status": "pending",
-      "use": "Nb2AlC starting values. The original publication has not been identified yet; the citation must be added before these are treated as fully cited literature."
+    "Su2024JMCC": {
+      "title": "MXene quantum dot functionalized bimetallic MOFs as a label-free aptasensor for highly sensitive detection of exosomes",
+      "authors": "X. Su, Q. You, P. Wang, L. Li, M. Ge, L. Yang, W.-F. Dong, Z. Chang",
+      "journal": "J. Mater. Chem. C",
+      "volume": 12,
+      "pages": "8561-8568",
+      "year": 2024,
+      "doi": "10.1039/D4TC01594K",
+      "location": "Supporting Information, Fig. S7 (Nb2AlC XPS)",
+      "citation_status": "verified",
+      "verification": "Citation and SI Fig. S7 values supplied by the user (2026-11-02); bibliographic record cross-checked against the RSC article page. The SI PDF itself was not machine-read in this session.",
+      "be_reference": "not clearly documented in the SI",
+      "confidence": "medium",
+      "use": "Nb2AlC: C-Nb C 1s 282.5 eV; Nb-C Nb 3d5/2 202.9 / 3d3/2 205.5 eV; Nb(V) 206.8 / 209.6 eV. Confidence medium: the SI is not primarily an Nb2AlC XPS study and the BE-reference method is not clearly documented."
     }
   },
   "profiles": {
@@ -1522,7 +1531,7 @@
       "material": "Nb2AlC",
       "phase": "MAX",
       "notes": [
-        "Literature-calibrated MAX profile (KB 1.4.0). Nb 3d / C 1s Nb2AlC values are user-supplied with the citation PENDING; Al 2p from Naslund2020.",
+        "Literature-calibrated MAX profile (KB 1.4.0). Nb 3d / C 1s Nb2AlC values from Su2024JMCC SI Fig. S7 (verified citation; confidence medium, BE reference not documented); Al 2p from Naslund2020.",
         "Literature BE scales differ (Fermi edge / ISO calibration) from the provider data (adventitious C 1s = 284.8 eV); offsets of a few 0.1 eV are expected. Values are starting points; fit windows are editable implementation bounds.",
         "Provider fit values are stored only as calibration_observations (never reference or starting values).",
         "Not modelled (provider-only, no literature counterpart found): Al 2p ~75.3-76.1 eV, O 1s ~529.3-529.4 eV, Nb 3d 201.80 eV (sample 1).",
@@ -1546,21 +1555,21 @@
               2.0
             ],
             "role": "framework_metal",
-            "source": "UserNb2AlC2026",
+            "source": "Su2024JMCC",
             "source_type": "literature",
-            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window.",
+            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference, Su2024JMCC SI Fig. S7: 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window.",
             "assignment_status": "candidate",
             "confidence": "medium",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (Su2024JMCC); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
             "literature_reference": [
               {
                 "reference_type": "literature_reference",
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC",
                 "line": "Nb 3d5/2",
                 "center": 202.9,
@@ -1569,8 +1578,10 @@
                   "line": "Nb 3d3/2",
                   "center": 205.5
                 },
-                "implied_split": 2.6,
-                "citation_status": "pending"
+                "citation_status": "verified",
+                "location": "SI Fig. S7",
+                "literature_split": 2.6,
+                "literature_split_basis": "implied by the reported 3d5/2 and 3d3/2 positions (literature-reported, NOT used as a fit constraint)"
               }
             ],
             "calibration_observations": [
@@ -1585,9 +1596,11 @@
                   202.95
                 ],
                 "n_fits": 1,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
-            ]
+            ],
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           },
           {
             "name": "Nb_MAX_2nd",
@@ -1626,11 +1639,13 @@
                   204.42
                 ],
                 "n_fits": 1,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
             ],
             "alternative_interpretation": "Near-surface Nb-C-O / sub-oxide environment (non-framework).",
-            "alternative_role": "metal_suboxide_candidate"
+            "alternative_role": "metal_suboxide_candidate",
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           },
           {
             "name": "Nb_suboxide_like",
@@ -1675,21 +1690,21 @@
               2.3
             ],
             "role": "metal_oxide",
-            "source": "UserNb2AlC2026",
+            "source": "Su2024JMCC",
             "source_type": "literature",
-            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference 206.8 / 209.6 eV).",
+            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference, Su2024JMCC SI Fig. S7: 206.8 / 209.6 eV).",
             "assignment_status": "candidate",
             "confidence": "medium",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (Su2024JMCC); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
             "literature_reference": [
               {
                 "reference_type": "literature_reference",
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC (surface Nb oxide)",
                 "line": "Nb 3d5/2",
                 "center": 206.8,
@@ -1698,8 +1713,10 @@
                   "line": "Nb 3d3/2",
                   "center": 209.6
                 },
-                "implied_split": 2.8,
-                "citation_status": "pending"
+                "citation_status": "verified",
+                "location": "SI Fig. S7",
+                "literature_split": 2.8,
+                "literature_split_basis": "implied by the reported 3d5/2 and 3d3/2 positions (literature-reported, NOT used as a fit constraint)"
               }
             ],
             "transferred_reference": [
@@ -1725,9 +1742,11 @@
                   207.35
                 ],
                 "n_fits": 1,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
-            ]
+            ],
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           }
         ],
         "C 1s": [
@@ -1745,24 +1764,25 @@
               2.3
             ],
             "role": "framework_C",
-            "source": "UserNb2AlC2026",
+            "source": "Su2024JMCC",
             "source_type": "literature",
-            "interpretation": "Carbide C-Nb of Nb2AlC (reference 282.5 eV).",
+            "interpretation": "Carbide C-Nb of Nb2AlC (Su2024JMCC SI Fig. S7: 282.5 eV).",
             "assignment_status": "candidate",
             "confidence": "medium",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (Su2024JMCC); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "literature_reference": [
               {
                 "reference_type": "literature_reference",
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC",
                 "line": "C 1s",
                 "center": 282.5,
                 "note": "Literature reference value only; not a constraint or fixed position.",
-                "citation_status": "pending"
+                "citation_status": "verified",
+                "location": "SI Fig. S7"
               }
             ],
             "calibration_observations": [
@@ -2141,12 +2161,12 @@
       "material": "(Nb,Ti)2AlC",
       "phase": "MAX",
       "notes": [
-        "TRANSFERRED MAX model (KB 1.4.0): no direct XPS peak table for pristine (Nb,Ti)2AlC was found. Starting values are transferred from Nb2AlC (citation pending), Ti3AlC2/TiC (Naslund2020, Greczynski2018Carbides) and Ti2AlC Al 2p (Naslund2020); not independently validated for (Nb,Ti)2AlC.",
+        "TRANSFERRED MAX model (KB 1.4.0): no direct XPS peak table for pristine (Nb,Ti)2AlC was found. Starting values are transferred from Nb2AlC (Su2024JMCC), Ti3AlC2/TiC (Naslund2020, Greczynski2018Carbides) and Ti2AlC Al 2p (Naslund2020); not independently validated for (Nb,Ti)2AlC.",
         "Literature BE scales differ (Fermi edge / ISO calibration) from the provider data (adventitious C 1s = 284.8 eV); offsets of a few 0.1 eV are expected. Values are starting points; fit windows are editable implementation bounds.",
         "Provider fit values are stored only as calibration_observations (never reference or starting values).",
         "Not modelled (provider-only, no literature counterpart found): Al 2p ~75.3-76.1 eV, O 1s ~529.3-529.4 eV.",
         "Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window: expect strong area correlation.",
-        "Spin-orbit splittings follow the KB convention (D4 calibration-sensitive); literature splittings are recorded in the reference entries (e.g. Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti-C 6.00 eV).",
+        "Spin-orbit splittings follow the KB convention (D4 calibration-sensitive); literature splittings are recorded in the reference entries (e.g. Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti-C 6.00 eV, which IS used as the transferred Ti_MAX constraint in nbti_211_max).",
         "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination."
       ],
       "fit_models": {
@@ -2172,9 +2192,9 @@
             "confidence": "medium",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants. dSO 5.8 -> 6.00 eV in KB 1.5.0 (transferred from Naslund2020 Ti3AlC2).",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
-            "split": 5.8,
+            "split": 6.0,
             "ratio_primary_secondary": 2.0,
             "transferred_reference": [
               {
@@ -2215,9 +2235,12 @@
                   454.51
                 ],
                 "n_fits": 2,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 6.17,
+                "split_obs_note": "provider dSO from the sample whose Ti 2p1/2 was fitted (Nb 3s overlap); observation only"
               }
-            ]
+            ],
+            "split_basis": "transferred: Naslund2020 Ti3AlC2 Ti-C dSO 6.00 eV (direct MAX literature); not independently validated for (Nb,Ti)2AlC"
           },
           {
             "name": "Ti_oxide",
@@ -2289,7 +2312,8 @@
                 "n_fits": 2,
                 "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
               }
-            ]
+            ],
+            "split_basis": "KB Ti oxide convention 5.7 eV (unchanged); Naslund2020 TiO2 5.8 eV recorded in transferred_reference"
           }
         ],
         "Nb 3d": [
@@ -2307,20 +2331,20 @@
               2.0
             ],
             "role": "framework_metal",
-            "source": "UserNb2AlC2026",
+            "source": "Su2024JMCC",
             "source_type": "transferred",
-            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window. Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
+            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference, Su2024JMCC SI Fig. S7: 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window. Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
             "assignment_status": "candidate",
             "confidence": "low",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Su2024JMCC); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
             "transferred_reference": [
               {
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC",
                 "line": "Nb 3d5/2",
                 "center": 202.9,
@@ -2328,11 +2352,13 @@
                   "line": "Nb 3d3/2",
                   "center": 205.5
                 },
-                "implied_split": 2.6,
-                "citation_status": "pending",
+                "citation_status": "verified",
                 "reference_type": "transferred_reference",
                 "confidence": "low",
-                "note": "not independently validated for (Nb,Ti)2AlC"
+                "note": "not independently validated for (Nb,Ti)2AlC",
+                "location": "SI Fig. S7",
+                "literature_split": 2.6,
+                "literature_split_basis": "implied by the reported 3d5/2 and 3d3/2 positions (literature-reported, NOT used as a fit constraint)"
               }
             ],
             "calibration_observations": [
@@ -2348,9 +2374,11 @@
                   202.81
                 ],
                 "n_fits": 2,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
-            ]
+            ],
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           },
           {
             "name": "Nb_MAX_2nd",
@@ -2390,11 +2418,13 @@
                   203.86
                 ],
                 "n_fits": 2,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
             ],
             "alternative_interpretation": "Near-surface Nb-C-O / sub-oxide environment (non-framework).",
-            "alternative_role": "metal_suboxide_candidate"
+            "alternative_role": "metal_suboxide_candidate",
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           },
           {
             "name": "Nb_suboxide_like",
@@ -2439,20 +2469,20 @@
               2.3
             ],
             "role": "metal_oxide",
-            "source": "UserNb2AlC2026",
+            "source": "Su2024JMCC",
             "source_type": "transferred",
-            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference 206.8 / 209.6 eV). Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
+            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference, Su2024JMCC SI Fig. S7: 206.8 / 209.6 eV). Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
             "assignment_status": "candidate",
             "confidence": "low",
             "calibration_candidate": false,
             "validated": true,
-            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Su2024JMCC); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
             "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
             "transferred_reference": [
               {
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC (surface Nb oxide)",
                 "line": "Nb 3d5/2",
                 "center": 206.8,
@@ -2460,11 +2490,13 @@
                   "line": "Nb 3d3/2",
                   "center": 209.6
                 },
-                "implied_split": 2.8,
-                "citation_status": "pending",
+                "citation_status": "verified",
                 "reference_type": "transferred_reference",
                 "confidence": "low",
-                "note": "not independently validated for (Nb,Ti)2AlC"
+                "note": "not independently validated for (Nb,Ti)2AlC",
+                "location": "SI Fig. S7",
+                "literature_split": 2.8,
+                "literature_split_basis": "implied by the reported 3d5/2 and 3d3/2 positions (literature-reported, NOT used as a fit constraint)"
               },
               {
                 "reference_type": "transferred_reference",
@@ -2489,9 +2521,11 @@
                   207.13
                 ],
                 "n_fits": 2,
-                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "split_obs": 2.72
               }
-            ]
+            ],
+            "split_basis": "KB Nb 3d convention 2.8 eV (D4 calibration-sensitive); literature-reported / provider values are stored separately and not used as the constraint"
           }
         ],
         "C 1s": [
@@ -2521,13 +2555,14 @@
             "transferred_reference": [
               {
                 "reference_type": "transferred_reference",
-                "source": "UserNb2AlC2026",
+                "source": "Su2024JMCC",
                 "material": "Nb2AlC",
                 "line": "C 1s",
                 "center": 282.5,
                 "confidence": "low",
-                "citation_status": "pending",
-                "note": "not independently validated for (Nb,Ti)2AlC"
+                "citation_status": "verified",
+                "note": "not independently validated for (Nb,Ti)2AlC",
+                "location": "SI Fig. S7"
               },
               {
                 "reference_type": "transferred_reference",
@@ -3006,7 +3041,7 @@
     "area_fraction_abs_review": 0.2,
     "note": "Thresholds are conservative QC defaults, not literature constants; expose them to the user. Brette et al. estimate ~0.5 eV numerical uncertainty for their DFT BE calculations and note experimental resolutions around ~0.3 eV in cited MXene work."
   },
-  "kb_version": "1.4.0",
+  "kb_version": "1.5.0",
   "seed_version": "0.1.0",
   "created_at": "2026-10-15",
   "reviewed_by": null,
@@ -3043,6 +3078,11 @@
       "version": "1.4.0",
       "date": "2026-11-02",
       "note": "MAX-phase literature calibration: nb2alc_max starting values from Nb2AlC references (user-supplied values, citation pending; Al 2p from Naslund2020); nbti_211_max = transferred model (Nb2AlC + Ti3AlC2/TiC/Ti2AlC references; no direct (Nb,Ti)2AlC peak table found), labelled source_type=transferred. Provider fit values kept only as calibration_observations. Provider-only components dropped (Al ~75.3-76.1 eV; O ~529.3 eV; documented). Nb_suboxide_like, D4 status and spin-orbit splittings unchanged."
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-11-02",
+      "note": "Nb2AlC citation verified: UserNb2AlC2026 -> Su2024JMCC (J. Mater. Chem. C 12 (2024) 8561, SI Fig. S7; confidence medium). Splitting layers: literature-reported (Nb2AlC 2.6 eV, stored only), fit constraint (Nb 3d 2.8 eV unchanged; nbti_211_max Ti_MAX 5.8 -> 6.00 eV transferred from Naslund2020), provider observations (2.72, 6.17 eV). MXene profiles unchanged."
     }
   ],
   "spec_discrepancies": [
@@ -3078,7 +3118,7 @@
       "topic": "Spin-orbit splitting: KB vs provider",
       "detail": "KB doublets use Nb 3d dSO = 2.8 eV and Ti 2p dSO = 5.6-5.8 eV; the provider (PHI MultiPak) fits use 2.72 eV and 6.17 eV.",
       "status": "calibration_sensitive (Nb 3d); decided (Ti 2p)",
-      "decision": "Nb 3d: KB dSO 2.8 eV kept (not changed). Fixed-grid refit (2.70/2.72/2.75/2.80 eV) of the Nb2CTx and (Nb0.6Ti0.4)2CTx spectra: sample (Nb0.6Ti0.4)2CTx stable, Nb2CTx exceeds the declared materiality criteria (component fraction span >= 0.05 or delta span >= 0.05) in 3 of 4 window/background settings (delta span up to 0.095; at 2.80 eV Nb_suboxide_like sits on its lower window bound 205.40 eV). AIC favours 2.75-2.80 eV in the provider window and is nearly flat on the full raw region. D4 is therefore calibration-sensitive and delta is not finalized. Ti 2p: the provider's 6.17 eV is NOT adopted (Nb 3s overlap compromises the 2p1/2 side); literature-based Ti splitting kept; Ti 2p3/2 prioritized for interpretation.",
+      "decision": "Nb 3d: KB dSO 2.8 eV kept (not changed). Fixed-grid refit (2.70/2.72/2.75/2.80 eV) of the Nb2CTx and (Nb0.6Ti0.4)2CTx spectra: sample (Nb0.6Ti0.4)2CTx stable, Nb2CTx exceeds the declared materiality criteria (component fraction span >= 0.05 or delta span >= 0.05) in 3 of 4 window/background settings (delta span up to 0.095; at 2.80 eV Nb_suboxide_like sits on its lower window bound 205.40 eV). AIC favours 2.75-2.80 eV in the provider window and is nearly flat on the full raw region. D4 is therefore calibration-sensitive and delta is not finalized. Ti 2p: the provider's 6.17 eV is NOT adopted (Nb 3s overlap compromises the 2p1/2 side); literature-based Ti splitting kept; Ti 2p3/2 prioritized for interpretation. 2026-11-02 (KB 1.5.0): Nb 3d constraint stays 2.8 eV in all profiles; the Nb2AlC 2.6 eV implied by Su2024JMCC is a literature-reported splitting only; provider 2.72 eV and 6.17 eV are calibration observations; nbti_211_max Ti_MAX uses the transferred Naslund2020 Ti3AlC2 value 6.00 eV; MXene Ti 2p splittings unchanged.",
       "decided_by": "user (Ti 2p decision, Nb grid design and criteria); sensitivity analysis by the app maintainer",
       "decided_at": "2026-11-02"
     }
@@ -3108,7 +3148,7 @@
     ],
     "ti2p_interpretation": "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap).",
     "max_profiles": {
-      "nb2alc_max": "literature (Nb 3d / C 1s citation pending; Al 2p Naslund2020); O 1s, Al oxide, contamination C transferred",
+      "nb2alc_max": "literature (Nb 3d / C 1s Su2024JMCC SI Fig. S7, verified, confidence medium; Al 2p Naslund2020); O 1s, Al oxide, contamination C transferred",
       "nbti_211_max": "transferred (no direct (Nb,Ti)2AlC peak table found); not independently validated for (Nb,Ti)2AlC"
     }
   }

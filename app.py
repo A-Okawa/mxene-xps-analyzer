@@ -373,7 +373,7 @@ with tab_v:
     model_df = pd.DataFrame([{"name": x.name, "kind": x.kind, "role": x.role, "status": x.assignment_status,
                               "center": x.center, "BE_low": x.bounds[0], "BE_high": x.bounds[1],
                               "FWHM": x.fwhm, "FWHM_low": x.fwhm_bounds[0], "FWHM_high": x.fwhm_bounds[1],
-                              "ΔSO": x.split, "ratio": x.ratio_primary_secondary,
+                              "ΔSO": x.split, "ratio": x.ratio_primary_secondary, "ΔSO basis": x.split_basis or "",
                               "calibration": _cal_text(x),
                               "literature reference (display only)": x.literature_summary(),
                               "transferred reference (display only)": x.transferred_summary(),
@@ -383,7 +383,7 @@ with tab_v:
     ver = st.session_state.setdefault("model_reset", 0)
     edited_model = st.data_editor(
         model_df, hide_index=True, key=f"model_{profile_key}_{core}_{ver}",
-        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "calibration", "literature reference (display only)",
+        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "ΔSO basis", "calibration", "literature reference (display only)",
                   "transferred reference (display only)", "provider observation (display only)", "basis", "source", "DOI"])
     if st.button("Reset model to knowledge-base values"):
         st.session_state["model_reset"] = ver + 1
