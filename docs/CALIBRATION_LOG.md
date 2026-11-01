@@ -168,3 +168,38 @@ Effect of Ti_MAX ΔSO 5.8 → 6.00 eV on the Sasaki MAX Ti 2p spectra: sample 2 
 ΔAIC +2.0; sample 3 RMSE 120.2 → 125.9, ΔAIC +10.6; Ti_MAX fraction −0.013/−0.014. The fit statistic does not favour
 6.00 eV, but the 2p1/2 side is compromised by Nb 3s, so it is not a valid arbiter; the literature value is kept as
 decided.
+
+## Sample-1 low-BE Nb 3d5/2 feature (~201.8 eV) — calibration candidate only (2026-11-02, no KB change)
+
+Script: `tools/calibration/s1_lowbe_nb_sensitivity.py` (candidate `Nb_metal_like / unresolved_low_BE_Nb`, confidence
+low, source_type calibration observation; defined in the script only — **not** in any KB profile; Su2024JMCC values
+and the MAX profiles unchanged). Grid per sample: 4 windows × 2 backgrounds × tail surrogate on/off × candidate
+{none, doublet (ΔSO 2.8, 1.5:1), 3d5/2 singlet, free 201.8 + 204.6 eV singlets}; samples 2 and 3 as controls.
+The fitter has only symmetric pseudo-Voigt profiles; the metallic asymmetry was approximated by switching the
+`Nb_MAX_2nd` tail surrogate on/off (no true asymmetric line shape tested).
+
+Decision rule declared beforehand: "stable" only if, for sample 1 (doublet, tail on), ΔAIC ≤ −10 and ΔBIC ≤ −10 in all
+settings, area-fraction span < 0.02, no window-edge hit, |r(candidate, Nb_MAX)| < 0.8, and no comparable improvement
+in the controls.
+
+| Check (sample 1, doublet) | Result |
+|---|---|
+| ΔAIC / ΔBIC | ΔAIC −3 … −93 in all 16 settings; ΔBIC −81 … +9 (positive for the raw full region + Shirley) |
+| Fitted position | 201.44–201.64 eV (drifts below the provider's 201.80) |
+| FWHM | 0.9–1.2 eV with the tail surrogate; 0.60–0.68 eV (at/near the 0.6 eV floor) without it |
+| Area fraction of Nb 3d | 1.3–6.2 % (span 0.037) |
+| Area rel. std. error | 1.0–2.2 without tail, 3–5 with tail (area not determined) |
+| Correlations | \|r\| with Nb_MAX 0.76–0.96; with the tail surrogate −0.86 … −0.98 |
+| Residual 200.5–203 eV | without candidate a coherent positive hump (~+180 counts at 201.4 eV; lag-1 autocorr. ≈ 0.8); with it RMS 88 → 37, autocorr. 0.3–0.5 (tail on) |
+| Controls (samples 2, 3) | no improvement: ΔAIC +2 … +8, candidate collapses to zero area or window edges |
+| 3d3/2 partner | not independently identified: the free 3d3/2 singlet sticks to its 204.1 eV edge, free 5/2:3/2 ratio 1.3–6.4 (expected 1.5); the free 3d5/2 moves to 202.0–202.15 eV. A 3d5/2-only singlet with the tail on runs to the 202.3 eV edge (acts as low-BE broadening of Nb_MAX) |
+
+**Verdict: not stable → no assignment.** Sample 1 robustly has extra intensity on the low-BE side of the Nb–C line
+(present in every setting, absent in the controls), but its description is not identifiable with this fitter: position
+(201.4–202.3 eV), width, area and 3d3/2 partner all depend on the model, and the candidate is strongly correlated with
+Nb_MAX and the tail surrogate. Metallic Nb (literature ~202.2–202.4 eV, range 201.7–202.5) remains one possibility;
+other low-BE Nb species are equally consistent with these data (e.g. C-deficient carbide — Greczynski2018Carbides report
+a sub-stoichiometric NbC component 0.46 eV below NbC — or an Nb–Al intermetallic; NbAl3 appeared in earlier XRD of some
+Sasaki MAX batches, but the XRD↔XPS specimen link for sample 1 is not established and no bcc Nb was reported there).
+Orthogonal support (XRD / SEM-EDS of the same specimen, or a Nb-metal reference measured on the same instrument) is
+needed before any assignment. The feature stays a calibration observation outside the KB.
