@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import least_squares, nnls
 
+from .io import MAX_SINGLE_REGION_SPAN_EV, check_single_region
 from .models import FitComponent
 
 ETA0 = 0.35
@@ -84,7 +85,8 @@ class FitResult:
 
 
 def fit_core_level(x, y, components: list[FitComponent], background: str = "shirley",
-                   endpoint_avg: int = 1, corr_threshold: float = 0.8, max_nfev: int = 5000) -> FitResult:
+                   endpoint_avg: int = 1, corr_threshold: float = 0.8, max_nfev: int = 5000,
+                   max_span_eV: float | None = MAX_SINGLE_REGION_SPAN_EV) -> FitResult:
     if not components:
         raise ValueError("No fit components defined for this core level.")
     x = np.asarray(x, dtype=float)
@@ -93,12 +95,14 @@ def fit_core_level(x, y, components: list[FitComponent], background: str = "shir
     x, y = x[m], y[m]
     if len(x) < 20:
         raise ValueError("At least 20 finite data points are required for fitting.")
+    # I/O plausibility guard: hard stop for implausibly wide (survey / concatenated) ranges.
+    range_warnings = check_single_region(x, components[0].core_level, max_span_eV=max_span_eV)
     order = np.argsort(x, kind="stable")
     x, y = x[order], y[order]
     if background not in BACKGROUNDS:
         raise ValueError(f"background must be one of {list(BACKGROUNDS)}")
 
-    diag: list[str] = []
+    diag: list[str] = list(range_warnings)
     lo_x, hi_x = x[0], x[-1]
     for c in components:
         hi_line = c.center + (c.split or 0.0) if c.kind == "doublet" else c.center

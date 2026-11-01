@@ -23,7 +23,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from mxene_xps import __version__  # noqa: E402
 from mxene_xps.fitting import fit_core_level  # noqa: E402
-from mxene_xps.io import SPECTRUM_IMPORTERS, read_csv_bytes  # noqa: E402
+from mxene_xps.io import MULTIREGION_IMPORTERS, SPECTRUM_IMPORTERS, crop, read_csv_bytes  # noqa: E402
+from mxene_xps.multipak import (apply_user_mapping, map_to_kb, pair_spin_orbit, provider_component_table,  # noqa: E402
+                                read_multipak_provider)
 from mxene_xps.knowledge_base import default_kb, with_overrides  # noqa: E402
 from mxene_xps.models import (BE_REFERENCE_METHODS, ORTHOGONAL_METHODS, ROLE_LABELS, ROLES, SURFACE_STATES,  # noqa: E402
                               MeasurementMetadata, OrthogonalEvidence, SampleSetup)
@@ -288,13 +290,42 @@ with tab_v:
     kb_comps = models[core]
     c1, c2 = st.columns(2)
     with c1:
-        importer = st.selectbox("Raw-spectrum format", list(SPECTRUM_IMPORTERS))
+        importer = st.selectbox("Raw-spectrum format", list(SPECTRUM_IMPORTERS) + list(MULTIREGION_IMPORTERS))
         raw_file = st.file_uploader("Raw spectrum (BE, intensity; header optional; any order)", type=["csv", "txt", "dat"], key="raw")
+        region_sp = None
+        if raw_file is not None and importer in MULTIREGION_IMPORTERS:
+            try:
+                regs = MULTIREGION_IMPORTERS[importer](raw_file.getvalue())
+                labels = [f"{r.region} → {r.core_level or 'not a core level'} ({r.be.min():.1f}–{r.be.max():.1f} eV, "
+                          f"{len(r.be)} pts)" for r in regs]
+                default = next((i for i, r in enumerate(regs) if r.core_level == core), 0)
+                pick = st.selectbox("Region in file", list(range(len(regs))), index=default, format_func=lambda i: labels[i],
+                                    key=f"region_{raw_file.name}_{core}")
+                region_sp = regs[pick]
+                if region_sp.core_level != core:
+                    st.warning(f"Selected region {region_sp.region} is not {core}.")
+            except Exception as e:
+                st.error(f"Multi-region import failed: {e}")
+        restrict = st.checkbox("Restrict fit BE window", value=False,
+                               help="E.g. exclude a neighbouring core level. Recorded in the fit settings.")
+        win = None
+        if restrict:
+            w1, w2 = st.columns(2)
+            win = (w1.number_input("low BE (eV)", value=float(min(x.bounds[0] for x in models[core]) - 3.0), format="%.2f"),
+                   w2.number_input("high BE (eV)", value=float(max(x.bounds[1] + (x.split or 0) for x in models[core]) + 3.0), format="%.2f"))
         demo_tag = {"Ti 2p": "Ti2p", "Nb 3d": "Nb3d"}.get(core)
         use_demo = st.checkbox("Use synthetic demo spectrum (public test fixture)", value=False, disabled=demo_tag is None)
     with c2:
-        vendor_file = st.file_uploader("Provider component CSV (component, BE, FWHM, area[, role, core_level])", type=["csv"], key="vend")
-        doublet_conv = st.radio("Provider doublet area is…", ["total (both spin-orbit lines)", "primary line only"], horizontal=True)
+        prov_fmt = st.radio("Provider fit format", ["Generic component CSV", "PHI MultiPak Curve Fit Summary"], horizontal=True)
+        if prov_fmt == "Generic component CSV":
+            vendor_file = st.file_uploader("Provider component CSV (component, BE, FWHM, area[, role, core_level])", type=["csv"], key="vend")
+            doublet_conv = st.radio("Provider doublet area is…", ["total (both spin-orbit lines)", "primary line only"], horizontal=True)
+        else:
+            vendor_file = st.file_uploader("MultiPak report (.pptx) or Curve Fit Summary text (.txt/.csv)",
+                                           type=["pptx", "txt", "csv"], key="vend_mp")
+            doublet_conv = "total (both spin-orbit lines)"
+            st.caption("Spin-orbit lines reported as separate bands are paired by region, splitting, area ratio and "
+                       "proximity. Provider labels are kept; the KB mapping below is tentative and editable.")
         bg = st.selectbox("Background", ["shirley", "linear"])
         endavg = st.number_input("Background endpoint averaging (points)", min_value=1, value=1, step=1)
     with st.expander("QC thresholds (software defaults, not physical constants)"):
@@ -338,19 +369,82 @@ with tab_v:
                    "fit settings and the project export.")
         st.dataframe(pd.DataFrame(model_log).astype(str), hide_index=True)
 
+    mp_state = None
+    if vendor_file is not None and prov_fmt != "Generic component CSV":
+        try:
+            mp_bands = read_multipak_provider(vendor_file.getvalue(), vendor_file.name)
+            keys = (mp_bands.drop_duplicates("summary_index")
+                    .assign(lbl=lambda d: d["comment"].astype(str) + " | " + d["region"].astype(str) + " | "
+                            + d["data_file"].astype(str) + " | " + d["origin"].astype(str)))
+            cands = keys[keys["core_level"] == core]
+            st.markdown(f"**Provider fit (MultiPak)** — {len(keys)} summaries in file, {len(cands)} for {core}")
+            if len(cands):
+                opts = list(cands["summary_index"])
+                raw_name = raw_file.name if raw_file is not None else ""
+                stems = [str(f).rsplit(".", 1)[0] for f in cands["data_file"]]
+                default = next((i for i, (st_, cm) in enumerate(zip(stems, cands["comment"].astype(str)))
+                                if (st_ and st_ in raw_name) or (cm and cm == sample_name)), 0)
+                sidx = st.selectbox("Provider summary", opts, index=default,
+                                    format_func=lambda i: cands.set_index("summary_index").at[i, "lbl"],
+                                    key=f"mp_sum_{core}_{raw_name}")
+                if raw_name and not any(st_ and st_ in raw_name for st_ in stems):
+                    st.warning("No provider summary matches the raw-file name; confirm the selected summary belongs to "
+                               "the same sample/region.")
+                one = mp_bands[mp_bands["summary_index"] == sidx]
+                doublets, linked = pair_spin_orbit(one)
+                auto = map_to_kb(doublets, comps)
+                with st.expander("Provider raw fitted peaks (as reported; never modified)"):
+                    st.dataframe(linked.drop(columns=["origin"]), hide_index=True)
+                st.markdown("Spin-orbit pairing and tentative KB mapping (edit `mapped_component`; edits are logged)")
+                ed = st.data_editor(
+                    auto.table[["doublet_id", "provider_label", "pairing", "area_convention", "BE", "split_obs", "ratio_obs",
+                                "FWHM", "area_reported", "area_total_estimated", "mapped_component", "mapped_role",
+                                "mapping_method"]],
+                    hide_index=True, key=f"mp_map_{sidx}_{profile_key}",
+                    disabled=["doublet_id", "provider_label", "pairing", "area_convention", "BE", "split_obs", "ratio_obs",
+                              "FWHM", "area_reported", "area_total_estimated", "mapped_role", "mapping_method"],
+                    column_config={"mapped_component": st.column_config.SelectboxColumn(
+                        "mapped_component", options=[x.name for x in comps], required=False)})
+                edits = {r["doublet_id"]: (r["mapped_component"] or None) for r in ed.to_dict("records")}
+                mapping, map_log = apply_user_mapping(auto.table, edits, comps)
+                for n in auto.notes:
+                    st.info(n)
+                est = mapping[mapping["area_convention"] == "primary_line_only"]
+                if len(est):
+                    st.warning("Only one spin-orbit line was reported for: " + ", ".join(est["provider_label"])
+                               + ". Total areas are ESTIMATED with the degeneracy ratio.")
+                chk = mapping[mapping["area_convention"] == "unpaired_check"]
+                if len(chk):
+                    st.warning("Unpaired band(s) next to paired doublets: " + ", ".join(chk["provider_label"]) + " — check.")
+                if map_log:
+                    st.warning(f"{len(map_log)} user mapping change(s) relative to the automatic tentative mapping (logged).")
+                    st.dataframe(pd.DataFrame(map_log).astype(str), hide_index=True)
+                mp_state = {"bands": linked, "mapping": mapping, "mapping_log": map_log,
+                            "vendor": provider_component_table(mapping)}
+        except Exception as e:
+            st.error(f"MultiPak import failed: {e}")
+
     if st.button("Run Python fit", type="primary"):
         try:
-            if raw_file is not None:
+            if region_sp is not None:
+                sp = region_sp
+            elif raw_file is not None and importer in MULTIREGION_IMPORTERS:
+                raise ValueError("Select a valid region of the multi-region file.")
+            elif raw_file is not None:
                 sp = SPECTRUM_IMPORTERS[importer](raw_file.getvalue())
             elif use_demo and demo_tag:
                 sp = SPECTRUM_IMPORTERS[importer]((FIX / f"synthetic_{demo_tag}_raw.csv").read_bytes())
             else:
                 raise ValueError("Upload a raw spectrum or tick the demo option.")
+            if win is not None:
+                sp = crop(sp, *win)
             fr = fit_core_level(sp.be, sp.intensity, comps, background=bg, endpoint_avg=int(endavg), corr_threshold=corr_th)
             st.session_state.setdefault("fits", {})[f"{profile_key} | {core}"] = {"fit": fr, "import_notes": sp.notes,
                                                              "settings": {"background": bg, "endpoint_avg": int(endavg),
                                                                           "profile": profile_key, "kb_version": KB.version,
-                                                                          "model_overrides": model_log}}
+                                                                          "model_overrides": model_log,
+                                                                          "source_region": sp.region,
+                                                                          "fit_window_eV": list(win) if win else None}}
         except Exception as e:
             st.error(f"Fit failed: {e}")
 
@@ -393,13 +487,18 @@ with tab_v:
             with st.expander("Area-parameter correlation matrix"):
                 st.dataframe(fr.area_correlation.style.format("{:+.2f}"))
 
-        if vendor_file is not None:
+        if vendor_file is not None and (prov_fmt == "Generic component CSV" or mp_state is not None):
             try:
-                vend = read_csv_bytes(vendor_file.getvalue())
-                if "core_level" in vend.columns:
-                    vend = vend[vend["core_level"].astype(str).str.strip() == core]
+                if mp_state is not None:
+                    vend = mp_state["vendor"]
+                else:
+                    vend = read_csv_bytes(vendor_file.getvalue())
+                    if "core_level" in vend.columns:
+                        vend = vend[vend["core_level"].astype(str).str.strip() == core]
                 vp = prepare_vendor(vend, comps, "primary" if doublet_conv.startswith("primary") else "total")
                 cqc = compare_components(vp, fr.components, th)
+                if "provider_label" in vp.columns:
+                    cqc.insert(1, "provider_label", cqc["component"].map(dict(zip(vp["component"], vp["provider_label"]))))
                 gqc = compare_grouped(vp, fr.components, th)
                 summ = summarize(cqc, gqc)
                 getattr(st, summ.level)(f"**{summ.status}** — {summ.message}")
@@ -414,6 +513,9 @@ with tab_v:
                 d1.download_button("Component QC .csv", csv_bytes(cqc), file_name=f"{sample_name}_{core.replace(' ', '')}_validation.csv")
                 d2.download_button("Grouped QC .csv", csv_bytes(gqc), file_name=f"{sample_name}_{core.replace(' ', '')}_validation_grouped.csv")
                 fitstate.update({"component_qc": cqc, "grouped_qc": gqc, "summary": summ.__dict__, "thresholds": th})
+                if mp_state is not None:
+                    fitstate.update({"provider_raw_bands": mp_state["bands"], "provider_mapping": mp_state["mapping"],
+                                     "provider_mapping_log": mp_state["mapping_log"]})
             except Exception as e:
                 st.error(f"Provider comparison failed: {e}")
 
@@ -465,8 +567,13 @@ with tab_rep:
                         {k: v["settings"] for k, v in fits.items()} or None,
                         next((v.get("thresholds") for v in fits.values() if v.get("thresholds")), None), sources,
                         q.get("reclass") if q else None)
+    def _rec(x):
+        return None if x is None else json.loads(x.to_json(orient="records"))
     proj["fits"] = {k: {"metrics": v["fit"].metrics, "components": json.loads(v["fit"].components.to_json(orient="records")),
-                        "diagnostics": v["fit"].diagnostics, "summary": v.get("summary")} for k, v in fits.items()}
+                        "diagnostics": v["fit"].diagnostics, "summary": v.get("summary"),
+                        "provider_raw_bands": _rec(v.get("provider_raw_bands")),
+                        "provider_mapping": _rec(v.get("provider_mapping")),
+                        "provider_mapping_log": v.get("provider_mapping_log")} for k, v in fits.items()}
     sections: list = [("Sample setup", pd.DataFrame([{k: str(v) for k, v in proj["sample_setup"].items()}]).T.reset_index()
                        .rename(columns={"index": "field", 0: "value"})),
                       ("Measurement metadata", pd.DataFrame([{k: str(v) for k, v in md.to_dict().items()}]).T.reset_index()
@@ -480,6 +587,9 @@ with tab_rep:
             sections.append(("User role reclassifications", q["reclass"]))
     for k, v in fits.items():
         sections += [(f"Python fit – {k}", v["fit"].components), (f"Fit diagnostics – {k}", v["fit"].diagnostics)]
+        if v.get("provider_raw_bands") is not None:
+            sections += [(f"Provider raw fitted peaks – {k}", v["provider_raw_bands"]),
+                         (f"Provider pairing / tentative KB mapping – {k}", v["provider_mapping"])]
         if "grouped_qc" in v:
             sections += [(f"Role-grouped QC – {k}", v["grouped_qc"]), (f"Component QC – {k}", v["component_qc"]),
                          (f"QC summary – {k}", [f"{v['summary']['status']}: {v['summary']['message']}"])]
