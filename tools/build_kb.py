@@ -375,6 +375,255 @@ def apply_calibration_d4_o1s(kb: dict) -> None:
     cs["ti2p_interpretation"] = "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap)."
 
 
+# ======================================================================================================================
+# KB 1.4.0 (2026-11-02): MAX-phase literature calibration (user instructions). The provider-derived MAX starting
+# values of 1.3.0 are replaced. Three reference layers are kept apart on every MAX component:
+#   literature_reference      values reported for the same material (citation, or citation explicitly pending)
+#   transferred_reference     values reported for related materials (not independently validated for the target)
+#   calibration_observations  provider (PHI MultiPak) fit values of the Sasaki set: observations only
+# Nb_suboxide_like is NOT modified (unvalidated, non-framework, delta provisional, D4 calibration-sensitive).
+# Spin-orbit splittings are not changed (D4); literature splittings are recorded in the reference entries only.
+# ======================================================================================================================
+MAX_DATE = "2026-11-02"
+MAX_REFERENCES = {
+    "Naslund2020": {
+        "title": "X-ray Photoelectron Spectroscopy of Ti3AlC2, Ti3C2Tz, and TiC Provides Evidence for the Electrostatic Interaction between Laminated Layers in MAX-Phase Materials",
+        "authors": "L.-A. Naslund, P. O. A. Persson, J. Rosen", "journal": "J. Phys. Chem. C", "volume": 124,
+        "pages": "27732-27742", "year": 2020, "doi": "10.1021/acs.jpcc.0c07413",
+        "be_reference": "Fermi edge of each sample (not adventitious C)",
+        "use": "Ti3AlC2/TiC Ti 2p, C 1s, Al 2p, O 1s fit tables; Al 2p core-level shifts of Ti2AlC, V2AlC, Nb2AlC vs Al metal.",
+    },
+    "Greczynski2018Carbides": {
+        "title": "Reference binding energies of transition metal carbides by core-level x-ray photoelectron spectroscopy free from Ar+ etching artefacts",
+        "authors": "G. Greczynski, D. Primetzhofer, L. Hultman", "journal": "Appl. Surf. Sci.", "volume": 436,
+        "pages": "102-110", "year": 2018, "doi": "10.1016/j.apsusc.2017.11.264",
+        "be_reference": "ISO-calibrated spectrometer (Au 4f7/2 83.96, Ag 3d5/2 368.21, Cu 2p3/2 932.62 eV)",
+        "use": "Binary carbide reference values (TiC, NbC) and their native-oxide lines; supporting/transferred only.",
+    },
+    "UserNb2AlC2026": {
+        "title": "Nb2AlC XPS reference values supplied by the user on 2026-11-02 (Nb-C 3d5/2 202.9 / 3d3/2 205.5 eV; Nb oxide 206.8 / 209.6 eV; C-Nb 282.5 eV)",
+        "doi": None, "citation_status": "pending",
+        "use": "Nb2AlC starting values. The original publication has not been identified yet; the citation must be added before these are treated as fully cited literature.",
+    },
+}
+REF_FRAME_NOTE = ("Literature BE scales differ (Fermi edge / ISO calibration) from the provider data (adventitious C 1s = 284.8 eV); "
+                  "offsets of a few 0.1 eV are expected. Values are starting points; fit windows are editable implementation bounds.")
+
+
+def _lit(source, line, center, material, **kw):
+    return {"reference_type": "literature_reference", "source": source, "material": material, "line": line,
+            "center": center, "note": "Literature reference value only; not a constraint or fixed position.", **kw}
+
+
+def _tr(source, line, center, material, confidence, **kw):
+    return {"reference_type": "transferred_reference", "source": source, "material": material, "line": line,
+            "center": center, "confidence": confidence, **kw}
+
+
+def _obs(samples, be_range, n, **kw):
+    return {"reference_type": "provider_calibration_observation", "source": CAL_SOURCE, "samples": samples,
+            "BE_range": list(be_range), "n_fits": n,
+            "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.", **kw}
+
+
+def _m(name, kind, center, bounds, fwhm, fwhm_bounds, role, source, source_type, interp, conf, status="candidate",
+       split=None, ratio=None, lit=None, tr=None, obs=None, fwhm_basis=None, **extra):
+    d = {"name": name, "kind": kind, "center": center, "bounds": list(bounds), "fwhm": fwhm, "fwhm_bounds": list(fwhm_bounds),
+         "role": role, "source": source, "source_type": source_type, "interpretation": interp, "assignment_status": status,
+         "confidence": conf, "calibration_candidate": False, "validated": True,
+         "provenance": (f"KB 1.4.0 ({MAX_DATE}): starting center from {source_type} reference ({source}); bounds/fwhm_bounds are "
+                        "editable implementation windows, not literature constants."),
+         "fwhm_basis": fwhm_basis or "implementation default (resolution/pass-energy dependent), not a literature constant"}
+    if kind == "doublet":
+        d["split"], d["ratio_primary_secondary"] = split, ratio
+    if lit:
+        d["literature_reference"] = lit
+    if tr:
+        d["transferred_reference"] = tr
+    if obs:
+        d["calibration_observations"] = obs
+    d.update(extra)
+    return d
+
+
+TR_NOTE_NBTI = "not independently validated for (Nb,Ti)2AlC"
+S1, S23 = ["1_Nb2AlC"], ["2_(Nb0.9Ti0.1)2AlC", "3_(Nb0.6Ti0.4)2AlC"]
+
+
+def _nb_block(target: str, kb: dict, old: dict) -> list:
+    """Nb 3d for nb2alc_max (literature, citation pending) or nbti_211_max (transferred from Nb2AlC)."""
+    nbti = target == "nbti"
+    lit_c = [_lit("UserNb2AlC2026", "Nb 3d5/2", 202.9, "Nb2AlC", secondary={"line": "Nb 3d3/2", "center": 205.5},
+                  implied_split=2.6, citation_status="pending")]
+    lit_o = [_lit("UserNb2AlC2026", "Nb 3d5/2", 206.8, "Nb2AlC (surface Nb oxide)", secondary={"line": "Nb 3d3/2", "center": 209.6},
+                  implied_split=2.8, citation_status="pending")]
+    obs_c = [_obs(S1 if not nbti else S23, (202.95, 202.95) if not nbti else (202.73, 202.81), 1 if not nbti else 2)]
+    obs_o = [_obs(S1 if not nbti else S23, (207.35, 207.35) if not nbti else (207.07, 207.13), 1 if not nbti else 2)]
+    obs_t = [_obs(S1 if not nbti else S23, (204.42, 204.42) if not nbti else (203.83, 203.86), 1 if not nbti else 2)]
+    tr_note = {"note": TR_NOTE_NBTI} if nbti else {}
+    nb_max = _m("Nb_MAX", "doublet", 202.9, (202.3, 203.5), 1.1, (0.6, 2.0), "framework_metal",
+                "UserNb2AlC2026", "transferred" if nbti else "literature",
+                ("Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are "
+                 "asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 "
+                 "(~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window.")
+                + (f" Transferred from Nb2AlC; {TR_NOTE_NBTI}." if nbti else ""),
+                "low" if nbti else "medium", split=NB_SPLIT, ratio=NB_RATIO,
+                lit=None if nbti else lit_c,
+                tr=[{**{k: v for k, v in lit_c[0].items() if k not in ("reference_type", "note")}, "reference_type": "transferred_reference",
+                     "confidence": "low", **tr_note}] if nbti else None,
+                obs=obs_c)
+    tail = _m("Nb_MAX_2nd", "doublet", 203.9, (203.4, 204.6), 1.8, (0.8, 2.6), "framework_metal",
+              "Naslund2020", "implementation_surrogate",
+              ("Line-shape surrogate: high-BE tail of the asymmetric metallic MAX Nb line (Naslund2020 fit MAX metal-C lines "
+               "with asymmetric profiles toward higher BE; this engine uses symmetric pseudo-Voigts). Start = Nb_MAX + 1.0 eV "
+               "(implementation rule). Alternative: a second Nb environment (non-framework)."),
+              "low", status="unresolved", split=NB_SPLIT, ratio=NB_RATIO, obs=obs_t,
+              alternative_interpretation="Near-surface Nb-C-O / sub-oxide environment (non-framework).",
+              alternative_role="metal_suboxide_candidate")
+    subox = next(c for c in old["fit_models"]["Nb 3d"] if c["name"] == "Nb_suboxide_like")   # unchanged
+    nb_ox = _m("Nb2O5", "doublet", 206.8, (206.3, 207.8), 1.5, (0.8, 2.3), "metal_oxide",
+               "UserNb2AlC2026", "transferred" if nbti else "literature",
+               "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference 206.8 / 209.6 eV)."
+               + (f" Transferred from Nb2AlC; {TR_NOTE_NBTI}." if nbti else ""),
+               "low" if nbti else "medium", split=NB_SPLIT, ratio=NB_RATIO,
+               lit=None if nbti else lit_o,
+               tr=([{**{k: v for k, v in lit_o[0].items() if k not in ("reference_type", "note")}, "reference_type": "transferred_reference",
+                     "confidence": "low", **tr_note}] if nbti else [])
+               + [_tr("Greczynski2018Carbides", "Nb 3d3/2", 209.8, "native oxide on NbC film", "medium",
+                      note="supporting value from a related material (binary NbC), not used as the start value")],
+               obs=obs_o)
+    return [nb_max, tail, subox, nb_ox]
+
+
+def _c_block(target: str, kb: dict) -> list:
+    nbti = target == "nbti"
+    halim = {c["name"]: c for c in kb["profiles"]["nb2c_halim"]["fit_models"]["C 1s"]}
+    if nbti:
+        c_max = _m("C_MAX", "single", 282.2, (281.5, 283.0), 0.9, (0.5, 2.3), "framework_C", "Naslund2020", "transferred",
+                   ("Carbide C of (Nb,Ti)2AlC. Start 282.2 eV = implementation choice between the transferred references "
+                    f"Nb2AlC 282.5 eV and Ti3AlC2 281.88 eV; {TR_NOTE_NBTI}."), "low",
+                   tr=[_tr("UserNb2AlC2026", "C 1s", 282.5, "Nb2AlC", "low", citation_status="pending", note=TR_NOTE_NBTI),
+                       _tr("Naslund2020", "C 1s", 281.88, "Ti3AlC2 (312 MAX; Ti2AlC value not reported)", "medium", fwhm=0.57,
+                           note=TR_NOTE_NBTI)],
+                   obs=[_obs(S23, (281.90, 282.34), 2)])
+    else:
+        c_max = _m("C_MAX", "single", 282.5, (281.6, 283.2), 0.9, (0.5, 2.3), "framework_C", "UserNb2AlC2026", "literature",
+                   "Carbide C-Nb of Nb2AlC (reference 282.5 eV).", "medium",
+                   lit=[_lit("UserNb2AlC2026", "C 1s", 282.5, "Nb2AlC", citation_status="pending")],
+                   obs=[_obs(S1, (282.86, 282.86), 1)])
+    out = [c_max]
+    for name in ("C_C", "C_O", "COO"):
+        h = halim[name]
+        out.append(_m(name, "single", h["center"], h["bounds"], h["fwhm"], h["fwhm_bounds"], "contaminant", h["source"],
+                      "transferred", f"{h['interpretation']} Transferred from the Nb2CTx literature model (nb2c_halim).", "medium",
+                      tr=[_tr(h["source"], "C 1s", h["center"], "Nb2CTx (contamination C)", "medium")]))
+    return out
+
+
+def _al_block(target: str) -> list:
+    nbti = target == "nbti"
+    nb_al = _lit("Naslund2020", "Al 2p3/2", 72.40, "Nb2AlC", derived="Al metal 72.76 eV + reported Nb2AlC shift -0.36 eV")
+    ti_al = _tr("Naslund2020", "Al 2p3/2", 71.49, "Ti2AlC", "medium", derived="Al metal 72.76 eV + reported Ti2AlC shift -1.27 eV",
+                note=TR_NOTE_NBTI)
+    al2o3 = _tr("Naslund2020", "Al 2p", 74.5, "Al2O3 impurity on Ti3AlC2 (figure caption value, ~74.5 eV)", "medium")
+    if nbti:
+        al = _m("Al_MAX", "single", 72.0, (71.2, 72.8), 1.2, (0.6, 2.2), "A_site_metal", "Naslund2020", "transferred",
+                ("Al in the (Nb,Ti)2AlC lattice. Start 72.0 eV = implementation choice between transferred Nb2AlC (72.40) and "
+                 f"Ti2AlC (71.49) values; {TR_NOTE_NBTI}. Spin-orbit (0.40 eV) unresolved: single band."), "low",
+                tr=[{**nb_al, "reference_type": "transferred_reference", "confidence": "medium", "note": TR_NOTE_NBTI}, ti_al],
+                obs=[_obs(S23, (71.94, 72.04), 2)])
+    else:
+        al = _m("Al_MAX", "single", 72.4, (71.7, 72.9), 1.2, (0.6, 2.2), "A_site_metal", "Naslund2020", "literature",
+                "Al in the Nb2AlC lattice (Al 2p3/2 72.40 eV derived from the reported -0.36 eV shift vs Al metal). Single band.",
+                "medium", lit=[nb_al], obs=[_obs(S1, (72.50, 72.50), 1)])
+    ox = _m("Al_oxide", "single", 74.5, (73.6, 75.2), 1.6, (0.8, 2.4), "A_site_oxide", "Naslund2020", "transferred",
+            "Al2O3-like surface oxide (transferred from the Al2O3 impurity value reported on Ti3AlC2)."
+            + (f" {TR_NOTE_NBTI}." if nbti else ""), "medium", tr=[al2o3],
+            obs=[_obs(S1 if not nbti else S23, (74.32, 74.32) if not nbti else (73.94, 73.97), 1 if not nbti else 2)])
+    return [al, ox]
+
+
+def _o_block(target: str, kb: dict) -> list:
+    nbti = target == "nbti"
+    halim_o = next(c for c in kb["profiles"]["nb2c_halim"]["fit_models"]["O 1s"] if c["name"] == "Nb2O5_O")
+    trn = {"note": TR_NOTE_NBTI} if nbti else {}
+    return [
+        _m("O_oxide", "single", 530.5, (529.6, 531.0), 1.4, (0.7, 2.4), "oxide_O", "Naslund2020", "transferred",
+           "Metal-oxide lattice O (Nb2O5/TiO2-like) on the MAX surface.", "medium",
+           tr=[_tr(halim_o["source"], "O 1s", halim_o["center"], "Nb2CTx (Nb2O5 O)", "medium", **trn),
+               _tr("Naslund2020", "O 1s", 530.55, "TiO2 on Ti3AlC2", "medium", fwhm=1.4, **trn)],
+           obs=[_obs(S1 + S23, (529.30, 530.43), 5, note_extra="provider low-BE O at 529.30-529.39 eV (samples 1-2) has no literature counterpart here")]),
+        _m("O_OH_ads", "single", 531.9, (531.2, 532.4), 1.6, (0.8, 2.6), "adsorbate", "Naslund2020", "transferred",
+           "OH adsorbed on surface oxide (OH-TiO2 value on Ti3AlC2).", "medium",
+           tr=[_tr("Naslund2020", "O 1s", 531.9, "OH on TiO2 (Ti3AlC2)", "medium", fwhm=1.6, **trn)],
+           obs=[_obs(S1 + S23, (531.66, 531.94), 3)]),
+        _m("O_Al2O3", "single", 532.8, (532.3, 533.6), 1.6, (0.8, 2.6), "oxide_O", "Naslund2020", "transferred",
+           "Al2O3 O (value on Ti3AlC2).", "medium",
+           tr=[_tr("Naslund2020", "O 1s", 532.8, "Al2O3 on Ti3AlC2", "medium", fwhm=1.6, **trn)]),
+    ]
+
+
+def _ti_block() -> list:
+    return [
+        _m("Ti_MAX", "doublet", 454.75, (454.0, 455.5), 1.0, (0.6, 2.6), "framework_metal", "Naslund2020", "transferred",
+           (f"Ti-C of the MAX phase, transferred from Ti3AlC2 (no direct Ti2AlC / (Nb,Ti)2AlC peak table found); {TR_NOTE_NBTI}. "
+            "Prioritize Ti 2p3/2 (Nb 3s overlaps Ti 2p1/2)."), "medium", split=TI_SPLIT, ratio=TI_RATIO,
+           tr=[_tr("Naslund2020", "Ti 2p3/2", 454.75, "Ti3AlC2", "medium", fwhm=0.88, secondary={"line": "Ti 2p1/2", "center": 460.75},
+                   literature_split=6.00, note=TR_NOTE_NBTI),
+               _tr("Greczynski2018Carbides", "Ti 2p3/2", 454.7, "TiC (binary carbide)", "low", note=TR_NOTE_NBTI)],
+           obs=[_obs(S23, (454.44, 454.51), 2)]),
+        _m("Ti_oxide", "doublet", 458.8, (458.0, 459.6), 1.6, (1.0, 3.0), "metal_oxide", "Naslund2020", "transferred",
+           f"TiO2-like surface oxide (TiO2 values on TiC / Ti3AlC2); {TR_NOTE_NBTI}.", "medium", split=TI_SPLIT_OX, ratio=TI_RATIO,
+           tr=[_tr("Naslund2020", "Ti 2p3/2", 458.8, "TiO2 on TiC", "medium", fwhm=1.2, literature_split=5.8),
+               _tr("Naslund2020", "Ti 2p3/2", 459.0, "TiO2 on Ti3AlC2", "medium", fwhm=1.2, literature_split=5.8),
+               _tr("Greczynski2018Carbides", "Ti 2p3/2", 458.30, "native oxide on TiC film", "low")],
+           obs=[_obs(S23, (458.36, 458.46), 2)]),
+    ]
+
+
+def apply_max_literature(kb: dict) -> None:
+    kb["kb_version"] = "1.4.0"
+    kb["references"].update(MAX_REFERENCES)
+    kb["changelog"].append({"version": "1.4.0", "date": MAX_DATE, "note": (
+        "MAX-phase literature calibration: nb2alc_max starting values from Nb2AlC references (user-supplied values, citation "
+        "pending; Al 2p from Naslund2020); nbti_211_max = transferred model (Nb2AlC + Ti3AlC2/TiC/Ti2AlC references; no direct "
+        "(Nb,Ti)2AlC peak table found), labelled source_type=transferred. Provider fit values kept only as "
+        "calibration_observations. Provider-only components dropped (Al ~75.3-76.1 eV; O ~529.3 eV; documented). "
+        "Nb_suboxide_like, D4 status and spin-orbit splittings unchanged.")})
+    for key, target, material in (("nb2alc_max", "nb2alc", "Nb2AlC"), ("nbti_211_max", "nbti", "(Nb,Ti)2AlC")):
+        old = kb["profiles"][key]
+        models = {}
+        if target == "nbti":
+            models["Ti 2p"] = _ti_block()
+        models["Nb 3d"] = _nb_block(target, kb, old)
+        models["C 1s"] = _c_block(target, kb)
+        models["O 1s"] = _o_block(target, kb)
+        models["Al 2p"] = _al_block(target)
+        notes = [
+            ("Literature-calibrated MAX profile (KB 1.4.0). Nb 3d / C 1s Nb2AlC values are user-supplied with the citation "
+             "PENDING; Al 2p from Naslund2020." if target == "nb2alc" else
+             "TRANSFERRED MAX model (KB 1.4.0): no direct XPS peak table for pristine (Nb,Ti)2AlC was found. Starting values are "
+             "transferred from Nb2AlC (citation pending), Ti3AlC2/TiC (Naslund2020, Greczynski2018Carbides) and Ti2AlC Al 2p "
+             f"(Naslund2020); {TR_NOTE_NBTI}."),
+            REF_FRAME_NOTE,
+            "Provider fit values are stored only as calibration_observations (never reference or starting values).",
+            "Not modelled (provider-only, no literature counterpart found): Al 2p ~75.3-76.1 eV, O 1s ~529.3-529.4 eV"
+            + (", Nb 3d 201.80 eV (sample 1)." if target == "nb2alc" else "."),
+            "Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window: expect strong area correlation.",
+            "Spin-orbit splittings follow the KB convention (D4 calibration-sensitive); literature splittings are recorded "
+            "in the reference entries (e.g. Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti-C 6.00 eV).",
+            "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination.",
+        ]
+        prof = {"material": material, "phase": "MAX", "notes": notes, "fit_models": models}
+        if "core_level_warnings" in old:
+            prof["core_level_warnings"] = old["core_level_warnings"]
+        kb["profiles"][key] = prof
+    kb["calibration_status"]["max_profiles"] = {
+        "nb2alc_max": "literature (Nb 3d / C 1s citation pending; Al 2p Naslund2020); O 1s, Al oxide, contamination C transferred",
+        "nbti_211_max": "transferred (no direct (Nb,Ti)2AlC peak table found); not independently validated for (Nb,Ti)2AlC",
+    }
+
+
 def main() -> None:
     seed = json.loads(SEED.read_text(encoding="utf-8"))
     kb = copy.deepcopy(seed)
@@ -433,6 +682,7 @@ def main() -> None:
                                        "fwhm_bounds are editable software fit windows (§27), not literature constants.")
     apply_calibration_phase2(kb)
     apply_calibration_d4_o1s(kb)
+    apply_max_literature(kb)
     OUT.write_text(json.dumps(kb, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"wrote {OUT}")
 

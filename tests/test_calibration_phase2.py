@@ -17,7 +17,7 @@ def _c(kb, p, core, name):
 
 
 def test_kb_version_and_status(kb):
-    assert kb.version == "1.3.1"
+    assert kb.version in ("1.3.1", "1.4.0")
     cs = kb.raw["calibration_status"]
     assert cs["nb3d_suboxide_like_validated"] is False
     assert cs["o1s_crosscheck_nb_suboxide_like"]["result"] == "inconclusive"
@@ -81,7 +81,8 @@ def test_max_profiles_are_separate(kb):
         nb = {c.name for c in kb.components(p, "Nb 3d")}
         assert "Nb_MAX" in nb and "Nb_MXene" not in nb
         assert _c(kb, p, "Nb 3d", "Nb_MAX").bounds[1] < _c(kb, "nb2c_halim", "Nb 3d", "Nb_MXene").bounds[0]
-        assert all(c.calibration_candidate and not c.validated for cs in kb.fit_models(p).values() for c in cs)
+        # KB 1.4.0: MAX components are literature/transferred; only the unchanged Nb candidate stays a calibration candidate
+        assert {c.name for cs in kb.fit_models(p).values() for c in cs if c.calibration_candidate} == {"Nb_suboxide_like"}
         assert {c.role for c in kb.components(p, "Al 2p")} >= {"A_site_metal", "A_site_oxide"}
 
 

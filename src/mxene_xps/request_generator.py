@@ -72,16 +72,25 @@ def _component_line(c: FitComponent) -> str:
         if c.alternative_interpretation:
             s += f"\n      alternative interpretation: {c.alternative_interpretation}"
     s += f"; source = {c.source}"
+    if c.source_type:
+        s += f"; start-value basis = {c.source_type}" + (f" (confidence {c.confidence})" if c.confidence else "")
     for r in c.literature_reference or []:
-        tag = ", ".join(x for x in (r["source"], r.get("dataset"), f"Table {r['table']}" if r.get("table") else None,
+        tag = ", ".join(x for x in (r["source"], r.get("material"), r.get("dataset"), f"Table {r['table']}" if r.get("table") else None,
                                     r.get("sample_state"), r["line"]) if x)
-        s += f"\n      literature reference ({tag}): {r['center']:.2f} eV, FWHM {r['fwhm']:.2f} eV"
+        s += f"\n      literature reference ({tag}): {r['center']:.2f} eV"
+        if r.get("fwhm") is not None:
+            s += f", FWHM {r['fwhm']:.2f} eV"
         if r.get("si_label"):
             s += f" [{r['si_label']}]"
         if r.get("secondary"):
             sec = r["secondary"]
-            s += f"; {sec['line']}: {sec['center']:.2f} eV, FWHM {sec['fwhm']:.2f} eV"
+            s += f"; {sec['line']}: {sec['center']:.2f} eV" + (f", FWHM {sec['fwhm']:.2f} eV" if sec.get("fwhm") is not None else "")
+        if r.get("citation_status") == "pending":
+            s += " [citation pending]"
         s += " (reference value, not a fixed position)"
+    for r in c.transferred_reference or []:
+        s += (f"\n      transferred reference ({r['source']}, {r.get('material')}, {r['line']}): {r['center']:.2f} eV "
+              f"(confidence {r.get('confidence')}; {r.get('note') or 'related material'})")
     if c.literature_interpretation:
         s += f"\n      note: {c.literature_interpretation}"
     return s

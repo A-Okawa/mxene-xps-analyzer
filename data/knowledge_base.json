@@ -95,6 +95,34 @@
       "title": "Provider PHI MultiPak fits of the Sasaki 2026-10 XPS set (Nb2AlC, (Nb,Ti)2AlC, Nb2CTx, (Nb0.6Ti0.4)2CTx); private, not distributed",
       "doi": null,
       "use": "Data-derived calibration candidates and MAX-phase starting values. Not literature; circular if used to validate the same provider fits."
+    },
+    "Naslund2020": {
+      "title": "X-ray Photoelectron Spectroscopy of Ti3AlC2, Ti3C2Tz, and TiC Provides Evidence for the Electrostatic Interaction between Laminated Layers in MAX-Phase Materials",
+      "authors": "L.-A. Naslund, P. O. A. Persson, J. Rosen",
+      "journal": "J. Phys. Chem. C",
+      "volume": 124,
+      "pages": "27732-27742",
+      "year": 2020,
+      "doi": "10.1021/acs.jpcc.0c07413",
+      "be_reference": "Fermi edge of each sample (not adventitious C)",
+      "use": "Ti3AlC2/TiC Ti 2p, C 1s, Al 2p, O 1s fit tables; Al 2p core-level shifts of Ti2AlC, V2AlC, Nb2AlC vs Al metal."
+    },
+    "Greczynski2018Carbides": {
+      "title": "Reference binding energies of transition metal carbides by core-level x-ray photoelectron spectroscopy free from Ar+ etching artefacts",
+      "authors": "G. Greczynski, D. Primetzhofer, L. Hultman",
+      "journal": "Appl. Surf. Sci.",
+      "volume": 436,
+      "pages": "102-110",
+      "year": 2018,
+      "doi": "10.1016/j.apsusc.2017.11.264",
+      "be_reference": "ISO-calibrated spectrometer (Au 4f7/2 83.96, Ag 3d5/2 368.21, Cu 2p3/2 932.62 eV)",
+      "use": "Binary carbide reference values (TiC, NbC) and their native-oxide lines; supporting/transferred only."
+    },
+    "UserNb2AlC2026": {
+      "title": "Nb2AlC XPS reference values supplied by the user on 2026-11-02 (Nb-C 3d5/2 202.9 / 3d3/2 205.5 eV; Nb oxide 206.8 / 209.6 eV; C-Nb 282.5 eV)",
+      "doi": null,
+      "citation_status": "pending",
+      "use": "Nb2AlC starting values. The original publication has not been identified yet; the citation must be added before these are treated as fully cited literature."
     }
   },
   "profiles": {
@@ -1494,35 +1522,72 @@
       "material": "Nb2AlC",
       "phase": "MAX",
       "notes": [
-        "MAX-phase profile (KB 1.3.0): ALL starting values are data-derived from the provider fits of the same samples (Sasaki2026MultiPak), not literature. Literature values must be added before these become reference models.",
-        "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination.",
-        "Sample-1 provider fit also contains a small Nb 3d doublet at 201.80 eV (3.6 %) that is not modelled here."
+        "Literature-calibrated MAX profile (KB 1.4.0). Nb 3d / C 1s Nb2AlC values are user-supplied with the citation PENDING; Al 2p from Naslund2020.",
+        "Literature BE scales differ (Fermi edge / ISO calibration) from the provider data (adventitious C 1s = 284.8 eV); offsets of a few 0.1 eV are expected. Values are starting points; fit windows are editable implementation bounds.",
+        "Provider fit values are stored only as calibration_observations (never reference or starting values).",
+        "Not modelled (provider-only, no literature counterpart found): Al 2p ~75.3-76.1 eV, O 1s ~529.3-529.4 eV, Nb 3d 201.80 eV (sample 1).",
+        "Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window: expect strong area correlation.",
+        "Spin-orbit splittings follow the KB convention (D4 calibration-sensitive); literature splittings are recorded in the reference entries (e.g. Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti-C 6.00 eV).",
+        "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination."
       ],
       "fit_models": {
         "Nb 3d": [
           {
             "name": "Nb_MAX",
             "kind": "doublet",
-            "center": 202.85,
+            "center": 202.9,
             "bounds": [
               202.3,
-              203.4
+              203.5
             ],
-            "fwhm": 1.2,
+            "fwhm": 1.1,
             "fwhm_bounds": [
-              0.7,
+              0.6,
               2.0
             ],
             "role": "framework_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Main Nb 3d5/2 line of the MAX phase (provider 202.73-202.95 eV). Metallic MAX lines are asymmetric; a symmetric pseudo-Voigt needs Nb_MAX_2nd to describe the tail.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "UserNb2AlC2026",
+            "source_type": "literature",
+            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window.",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
-            "ratio_primary_secondary": 1.5
+            "ratio_primary_secondary": 1.5,
+            "literature_reference": [
+              {
+                "reference_type": "literature_reference",
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC",
+                "line": "Nb 3d5/2",
+                "center": 202.9,
+                "note": "Literature reference value only; not a constraint or fixed position.",
+                "secondary": {
+                  "line": "Nb 3d3/2",
+                  "center": 205.5
+                },
+                "implied_split": 2.6,
+                "citation_status": "pending"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  202.95,
+                  202.95
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "Nb_MAX_2nd",
@@ -1538,15 +1603,32 @@
               2.6
             ],
             "role": "framework_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved: asymmetric tail of the metallic MAX line (symmetric line shape) or a second Nb environment (provider 203.83-204.42 eV, FWHM 1.7-2.0).",
+            "source": "Naslund2020",
+            "source_type": "implementation_surrogate",
+            "interpretation": "Line-shape surrogate: high-BE tail of the asymmetric metallic MAX Nb line (Naslund2020 fit MAX metal-C lines with asymmetric profiles toward higher BE; this engine uses symmetric pseudo-Voigts). Start = Nb_MAX + 1.0 eV (implementation rule). Alternative: a second Nb environment (non-framework).",
             "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
             "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from implementation_surrogate reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  204.42,
+                  204.42
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ],
             "alternative_interpretation": "Near-surface Nb-C-O / sub-oxide environment (non-framework).",
             "alternative_role": "metal_suboxide_candidate"
           },
@@ -1582,216 +1664,434 @@
           {
             "name": "Nb2O5",
             "kind": "doublet",
-            "center": 207.2,
+            "center": 206.8,
             "bounds": [
-              206.7,
+              206.3,
               207.8
             ],
-            "fwhm": 1.45,
+            "fwhm": 1.5,
             "fwhm_bounds": [
               0.8,
               2.3
             ],
             "role": "metal_oxide",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Nb2O5-like surface oxide (provider 207.07-207.35 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "UserNb2AlC2026",
+            "source_type": "literature",
+            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference 206.8 / 209.6 eV).",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
-            "ratio_primary_secondary": 1.5
+            "ratio_primary_secondary": 1.5,
+            "literature_reference": [
+              {
+                "reference_type": "literature_reference",
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC (surface Nb oxide)",
+                "line": "Nb 3d5/2",
+                "center": 206.8,
+                "note": "Literature reference value only; not a constraint or fixed position.",
+                "secondary": {
+                  "line": "Nb 3d3/2",
+                  "center": 209.6
+                },
+                "implied_split": 2.8,
+                "citation_status": "pending"
+              }
+            ],
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Greczynski2018Carbides",
+                "material": "native oxide on NbC film",
+                "line": "Nb 3d3/2",
+                "center": 209.8,
+                "confidence": "medium",
+                "note": "supporting value from a related material (binary NbC), not used as the start value"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  207.35,
+                  207.35
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           }
         ],
         "C 1s": [
           {
             "name": "C_MAX",
             "kind": "single",
-            "center": 282.4,
+            "center": 282.5,
             "bounds": [
-              281.5,
+              281.6,
               283.2
             ],
-            "fwhm": 1.3,
+            "fwhm": 0.9,
             "fwhm_bounds": [
-              0.6,
+              0.5,
               2.3
             ],
             "role": "framework_C",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Carbide C of the MAX phase (provider 281.90-282.86 eV; wide spread between samples).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "UserNb2AlC2026",
+            "source_type": "literature",
+            "interpretation": "Carbide C-Nb of Nb2AlC (reference 282.5 eV).",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "literature_reference": [
+              {
+                "reference_type": "literature_reference",
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC",
+                "line": "C 1s",
+                "center": 282.5,
+                "note": "Literature reference value only; not a constraint or fixed position.",
+                "citation_status": "pending"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  282.86,
+                  282.86
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "C_C",
             "kind": "single",
-            "center": 284.8,
+            "center": 285.1,
             "bounds": [
-              284.2,
-              285.4
+              284.3,
+              285.6
             ],
-            "fwhm": 1.9,
+            "fwhm": 1.4,
             "fwhm_bounds": [
               0.8,
-              2.8
+              2.3
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Adventitious C (charge reference 284.8 eV). Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label C-C. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 285.1,
+                "confidence": "medium"
+              }
+            ]
           },
           {
             "name": "C_O",
             "kind": "single",
-            "center": 286.6,
+            "center": 286.65,
             "bounds": [
-              285.8,
+              286.0,
               287.4
             ],
-            "fwhm": 1.8,
+            "fwhm": 1.75,
             "fwhm_bounds": [
-              0.8,
+              0.9,
               2.8
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Oxygenated contamination C. Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label C-O. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 286.65,
+                "confidence": "medium"
+              }
+            ]
           },
           {
             "name": "COO",
             "kind": "single",
-            "center": 288.7,
+            "center": 288.8,
             "bounds": [
-              287.8,
+              288.0,
               289.7
             ],
-            "fwhm": 1.7,
+            "fwhm": 1.5,
             "fwhm_bounds": [
               0.8,
               2.8
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Carboxyl-type contamination C. Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label COO. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 288.8,
+                "confidence": "medium"
+              }
+            ]
           }
         ],
         "O 1s": [
           {
-            "name": "O_lowBE",
+            "name": "O_oxide",
             "kind": "single",
-            "center": 529.4,
+            "center": 530.5,
             "bounds": [
-              528.8,
-              529.9
+              529.6,
+              531.0
             ],
-            "fwhm": 1.9,
+            "fwhm": 1.4,
             "fwhm_bounds": [
-              0.8,
-              2.5
+              0.7,
+              2.4
             ],
-            "role": "O_unresolved_low",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved low-BE O (metal oxide lattice O candidate; provider 529.30-529.39 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "oxide_O",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Metal-oxide lattice O (Nb2O5/TiO2-like) on the MAX surface.",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (Nb2O5 O)",
+                "line": "O 1s",
+                "center": 530.45,
+                "confidence": "medium"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "TiO2 on Ti3AlC2",
+                "line": "O 1s",
+                "center": 530.55,
+                "confidence": "medium",
+                "fwhm": 1.4
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC",
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  529.3,
+                  530.43
+                ],
+                "n_fits": 5,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "note_extra": "provider low-BE O at 529.30-529.39 eV (samples 1-2) has no literature counterpart here"
+              }
+            ]
           },
           {
-            "name": "O_midBE",
+            "name": "O_OH_ads",
             "kind": "single",
-            "center": 530.3,
+            "center": 531.9,
             "bounds": [
-              529.9,
-              530.9
+              531.2,
+              532.4
             ],
             "fwhm": 1.6,
             "fwhm_bounds": [
               0.8,
-              2.5
+              2.6
             ],
-            "role": "O_unresolved_mid",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved mid-BE O (Nb/Ti oxide O candidate; provider 530.05-530.43 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "adsorbate",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "OH adsorbed on surface oxide (OH-TiO2 value on Ti3AlC2).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "OH on TiO2 (Ti3AlC2)",
+                "line": "O 1s",
+                "center": 531.9,
+                "confidence": "medium",
+                "fwhm": 1.6
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC",
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  531.66,
+                  531.94
+                ],
+                "n_fits": 3,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
-            "name": "O_highBE",
+            "name": "O_Al2O3",
             "kind": "single",
-            "center": 531.8,
+            "center": 532.8,
             "bounds": [
-              531.2,
-              532.6
+              532.3,
+              533.6
             ],
-            "fwhm": 2.4,
+            "fwhm": 1.6,
             "fwhm_bounds": [
-              1.0,
-              3.0
+              0.8,
+              2.6
             ],
-            "role": "other",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved high-BE O (Al2O3/hydroxide/adsorbate candidates; provider 531.66-531.94 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "oxide_O",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Al2O3 O (value on Ti3AlC2).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Al2O3 on Ti3AlC2",
+                "line": "O 1s",
+                "center": 532.8,
+                "confidence": "medium",
+                "fwhm": 1.6
+              }
+            ]
           }
         ],
         "Al 2p": [
           {
             "name": "Al_MAX",
             "kind": "single",
-            "center": 72.2,
+            "center": 72.4,
             "bounds": [
-              71.6,
-              72.8
+              71.7,
+              72.9
             ],
-            "fwhm": 1.4,
+            "fwhm": 1.2,
             "fwhm_bounds": [
-              0.7,
+              0.6,
               2.2
             ],
             "role": "A_site_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Al in the MAX lattice (provider 71.94-72.50 eV). Spin-orbit not resolved; single band.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "Naslund2020",
+            "source_type": "literature",
+            "interpretation": "Al in the Nb2AlC lattice (Al 2p3/2 72.40 eV derived from the reported -0.36 eV shift vs Al metal). Single band.",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from literature reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "literature_reference": [
+              {
+                "reference_type": "literature_reference",
+                "source": "Naslund2020",
+                "material": "Nb2AlC",
+                "line": "Al 2p3/2",
+                "center": 72.4,
+                "note": "Literature reference value only; not a constraint or fixed position.",
+                "derived": "Al metal 72.76 eV + reported Nb2AlC shift -0.36 eV"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  72.5,
+                  72.5
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "Al_oxide",
             "kind": "single",
-            "center": 74.1,
+            "center": 74.5,
             "bounds": [
-              73.5,
-              74.8
+              73.6,
+              75.2
             ],
             "fwhm": 1.6,
             "fwhm_bounds": [
@@ -1799,35 +2099,40 @@
               2.4
             ],
             "role": "A_site_oxide",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Al2O3-like surface oxide (provider 73.94-74.32 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Al2O3-like surface oxide (transferred from the Al2O3 impurity value reported on Ti3AlC2).",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
-          },
-          {
-            "name": "Al_highBE",
-            "kind": "single",
-            "center": 75.6,
-            "bounds": [
-              74.9,
-              76.5
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Al2O3 impurity on Ti3AlC2 (figure caption value, ~74.5 eV)",
+                "line": "Al 2p",
+                "center": 74.5,
+                "confidence": "medium"
+              }
             ],
-            "fwhm": 1.5,
-            "fwhm_bounds": [
-              0.8,
-              2.4
-            ],
-            "role": "other",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved high-BE Al (provider 75.26-76.07 eV; e.g. Al-F or hydroxide candidates).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC"
+                ],
+                "BE_range": [
+                  74.32,
+                  74.32
+                ],
+                "n_fits": 1,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           }
         ]
       }
@@ -1836,85 +2141,216 @@
       "material": "(Nb,Ti)2AlC",
       "phase": "MAX",
       "notes": [
-        "MAX-phase profile (KB 1.3.0): ALL starting values are data-derived from the provider fits of the same samples (Sasaki2026MultiPak), not literature. Literature values must be added before these become reference models.",
-        "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination.",
-        "Sample-1 provider fit also contains a small Nb 3d doublet at 201.80 eV (3.6 %) that is not modelled here."
+        "TRANSFERRED MAX model (KB 1.4.0): no direct XPS peak table for pristine (Nb,Ti)2AlC was found. Starting values are transferred from Nb2AlC (citation pending), Ti3AlC2/TiC (Naslund2020, Greczynski2018Carbides) and Ti2AlC Al 2p (Naslund2020); not independently validated for (Nb,Ti)2AlC.",
+        "Literature BE scales differ (Fermi edge / ISO calibration) from the provider data (adventitious C 1s = 284.8 eV); offsets of a few 0.1 eV are expected. Values are starting points; fit windows are editable implementation bounds.",
+        "Provider fit values are stored only as calibration_observations (never reference or starting values).",
+        "Not modelled (provider-only, no literature counterpart found): Al 2p ~75.3-76.1 eV, O 1s ~529.3-529.4 eV.",
+        "Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window: expect strong area correlation.",
+        "Spin-orbit splittings follow the KB convention (D4 calibration-sensitive); literature splittings are recorded in the reference entries (e.g. Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti-C 6.00 eV).",
+        "Termination (Tx) outputs are not meaningful for a MAX phase; O/F/Cl are surface oxide/contamination."
       ],
       "fit_models": {
         "Ti 2p": [
           {
             "name": "Ti_MAX",
             "kind": "doublet",
-            "center": 454.5,
+            "center": 454.75,
             "bounds": [
-              453.9,
-              455.2
+              454.0,
+              455.5
             ],
-            "fwhm": 2.0,
+            "fwhm": 1.0,
             "fwhm_bounds": [
-              0.8,
-              2.8
+              0.6,
+              2.6
             ],
             "role": "framework_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Ti in the MAX lattice (provider 454.44-454.51 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Ti-C of the MAX phase, transferred from Ti3AlC2 (no direct Ti2AlC / (Nb,Ti)2AlC peak table found); not independently validated for (Nb,Ti)2AlC. Prioritize Ti 2p3/2 (Nb 3s overlaps Ti 2p1/2).",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 5.8,
-            "ratio_primary_secondary": 2.0
+            "ratio_primary_secondary": 2.0,
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Ti3AlC2",
+                "line": "Ti 2p3/2",
+                "center": 454.75,
+                "confidence": "medium",
+                "fwhm": 0.88,
+                "secondary": {
+                  "line": "Ti 2p1/2",
+                  "center": 460.75
+                },
+                "literature_split": 6.0,
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Greczynski2018Carbides",
+                "material": "TiC (binary carbide)",
+                "line": "Ti 2p3/2",
+                "center": 454.7,
+                "confidence": "low",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  454.44,
+                  454.51
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "Ti_oxide",
             "kind": "doublet",
-            "center": 458.4,
+            "center": 458.8,
             "bounds": [
               458.0,
-              459.5
+              459.6
             ],
-            "fwhm": 1.9,
+            "fwhm": 1.6,
             "fwhm_bounds": [
               1.0,
               3.0
             ],
             "role": "metal_oxide",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "TiO2-like surface oxide (provider 458.36-458.46 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "TiO2-like surface oxide (TiO2 values on TiC / Ti3AlC2); not independently validated for (Nb,Ti)2AlC.",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 5.7,
-            "ratio_primary_secondary": 2.0
+            "ratio_primary_secondary": 2.0,
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "TiO2 on TiC",
+                "line": "Ti 2p3/2",
+                "center": 458.8,
+                "confidence": "medium",
+                "fwhm": 1.2,
+                "literature_split": 5.8
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "TiO2 on Ti3AlC2",
+                "line": "Ti 2p3/2",
+                "center": 459.0,
+                "confidence": "medium",
+                "fwhm": 1.2,
+                "literature_split": 5.8
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Greczynski2018Carbides",
+                "material": "native oxide on TiC film",
+                "line": "Ti 2p3/2",
+                "center": 458.3,
+                "confidence": "low"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  458.36,
+                  458.46
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           }
         ],
         "Nb 3d": [
           {
             "name": "Nb_MAX",
             "kind": "doublet",
-            "center": 202.85,
+            "center": 202.9,
             "bounds": [
               202.3,
-              203.4
+              203.5
             ],
-            "fwhm": 1.2,
+            "fwhm": 1.1,
             "fwhm_bounds": [
-              0.7,
+              0.6,
               2.0
             ],
             "role": "framework_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Main Nb 3d5/2 line of the MAX phase (provider 202.73-202.95 eV). Metallic MAX lines are asymmetric; a symmetric pseudo-Voigt needs Nb_MAX_2nd to describe the tail.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "source": "UserNb2AlC2026",
+            "source_type": "transferred",
+            "interpretation": "Nb-C(-Al) 3d5/2 of the MAX phase (Nb2AlC reference 202.9 eV; 3d3/2 205.5 eV). Metallic MAX lines are asymmetric; with symmetric pseudo-Voigt profiles the tail is carried by Nb_MAX_2nd. NOTE: Nb_MAX 3d3/2 (~205.5-205.7 eV) overlaps the Nb_suboxide_like 3d5/2 window. Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
+            "assignment_status": "candidate",
+            "confidence": "low",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
-            "ratio_primary_secondary": 1.5
+            "ratio_primary_secondary": 1.5,
+            "transferred_reference": [
+              {
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC",
+                "line": "Nb 3d5/2",
+                "center": 202.9,
+                "secondary": {
+                  "line": "Nb 3d3/2",
+                  "center": 205.5
+                },
+                "implied_split": 2.6,
+                "citation_status": "pending",
+                "reference_type": "transferred_reference",
+                "confidence": "low",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  202.73,
+                  202.81
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "Nb_MAX_2nd",
@@ -1930,15 +2366,33 @@
               2.6
             ],
             "role": "framework_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved: asymmetric tail of the metallic MAX line (symmetric line shape) or a second Nb environment (provider 203.83-204.42 eV, FWHM 1.7-2.0).",
+            "source": "Naslund2020",
+            "source_type": "implementation_surrogate",
+            "interpretation": "Line-shape surrogate: high-BE tail of the asymmetric metallic MAX Nb line (Naslund2020 fit MAX metal-C lines with asymmetric profiles toward higher BE; this engine uses symmetric pseudo-Voigts). Start = Nb_MAX + 1.0 eV (implementation rule). Alternative: a second Nb environment (non-framework).",
             "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
             "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from implementation_surrogate reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
             "ratio_primary_secondary": 1.5,
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  203.83,
+                  203.86
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ],
             "alternative_interpretation": "Near-surface Nb-C-O / sub-oxide environment (non-framework).",
             "alternative_role": "metal_suboxide_candidate"
           },
@@ -1974,216 +2428,462 @@
           {
             "name": "Nb2O5",
             "kind": "doublet",
-            "center": 207.2,
+            "center": 206.8,
             "bounds": [
-              206.7,
+              206.3,
               207.8
             ],
-            "fwhm": 1.45,
+            "fwhm": 1.5,
             "fwhm_bounds": [
               0.8,
               2.3
             ],
             "role": "metal_oxide",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Nb2O5-like surface oxide (provider 207.07-207.35 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated.",
+            "source": "UserNb2AlC2026",
+            "source_type": "transferred",
+            "interpretation": "Surface Nb oxide (Nb2O5-like) on the MAX phase (Nb2AlC reference 206.8 / 209.6 eV). Transferred from Nb2AlC; not independently validated for (Nb,Ti)2AlC.",
+            "assignment_status": "candidate",
+            "confidence": "low",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (UserNb2AlC2026); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
             "split": 2.8,
-            "ratio_primary_secondary": 1.5
+            "ratio_primary_secondary": 1.5,
+            "transferred_reference": [
+              {
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC (surface Nb oxide)",
+                "line": "Nb 3d5/2",
+                "center": 206.8,
+                "secondary": {
+                  "line": "Nb 3d3/2",
+                  "center": 209.6
+                },
+                "implied_split": 2.8,
+                "citation_status": "pending",
+                "reference_type": "transferred_reference",
+                "confidence": "low",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Greczynski2018Carbides",
+                "material": "native oxide on NbC film",
+                "line": "Nb 3d3/2",
+                "center": 209.8,
+                "confidence": "medium",
+                "note": "supporting value from a related material (binary NbC), not used as the start value"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  207.07,
+                  207.13
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           }
         ],
         "C 1s": [
           {
             "name": "C_MAX",
             "kind": "single",
-            "center": 282.4,
+            "center": 282.2,
             "bounds": [
               281.5,
-              283.2
+              283.0
             ],
-            "fwhm": 1.3,
+            "fwhm": 0.9,
             "fwhm_bounds": [
-              0.6,
+              0.5,
               2.3
             ],
             "role": "framework_C",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Carbide C of the MAX phase (provider 281.90-282.86 eV; wide spread between samples).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Carbide C of (Nb,Ti)2AlC. Start 282.2 eV = implementation choice between the transferred references Nb2AlC 282.5 eV and Ti3AlC2 281.88 eV; not independently validated for (Nb,Ti)2AlC.",
+            "assignment_status": "candidate",
+            "confidence": "low",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "UserNb2AlC2026",
+                "material": "Nb2AlC",
+                "line": "C 1s",
+                "center": 282.5,
+                "confidence": "low",
+                "citation_status": "pending",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Ti3AlC2 (312 MAX; Ti2AlC value not reported)",
+                "line": "C 1s",
+                "center": 281.88,
+                "confidence": "medium",
+                "fwhm": 0.57,
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  281.9,
+                  282.34
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "C_C",
             "kind": "single",
-            "center": 284.8,
+            "center": 285.1,
             "bounds": [
-              284.2,
-              285.4
+              284.3,
+              285.6
             ],
-            "fwhm": 1.9,
+            "fwhm": 1.4,
             "fwhm_bounds": [
               0.8,
-              2.8
+              2.3
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Adventitious C (charge reference 284.8 eV). Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label C-C. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 285.1,
+                "confidence": "medium"
+              }
+            ]
           },
           {
             "name": "C_O",
             "kind": "single",
-            "center": 286.6,
+            "center": 286.65,
             "bounds": [
-              285.8,
+              286.0,
               287.4
             ],
-            "fwhm": 1.8,
+            "fwhm": 1.75,
             "fwhm_bounds": [
-              0.8,
+              0.9,
               2.8
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Oxygenated contamination C. Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label C-O. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 286.65,
+                "confidence": "medium"
+              }
+            ]
           },
           {
             "name": "COO",
             "kind": "single",
-            "center": 288.7,
+            "center": 288.8,
             "bounds": [
-              287.8,
+              288.0,
               289.7
             ],
-            "fwhm": 1.7,
+            "fwhm": 1.5,
             "fwhm_bounds": [
               0.8,
               2.8
             ],
             "role": "contaminant",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Carboxyl-type contamination C. Excluded from framework C.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "high",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Halim2018Vacancy",
+            "source_type": "transferred",
+            "interpretation": "Literature label COO. Contamination; excluded from framework C. Transferred from the Nb2CTx literature model (nb2c_halim).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Halim2018Vacancy); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (contamination C)",
+                "line": "C 1s",
+                "center": 288.8,
+                "confidence": "medium"
+              }
+            ]
           }
         ],
         "O 1s": [
           {
-            "name": "O_lowBE",
+            "name": "O_oxide",
             "kind": "single",
-            "center": 529.4,
+            "center": 530.5,
             "bounds": [
-              528.8,
-              529.9
+              529.6,
+              531.0
             ],
-            "fwhm": 1.9,
+            "fwhm": 1.4,
             "fwhm_bounds": [
-              0.8,
-              2.5
+              0.7,
+              2.4
             ],
-            "role": "O_unresolved_low",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved low-BE O (metal oxide lattice O candidate; provider 529.30-529.39 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "oxide_O",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Metal-oxide lattice O (Nb2O5/TiO2-like) on the MAX surface.",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Halim2018Vacancy",
+                "material": "Nb2CTx (Nb2O5 O)",
+                "line": "O 1s",
+                "center": 530.45,
+                "confidence": "medium",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "TiO2 on Ti3AlC2",
+                "line": "O 1s",
+                "center": 530.55,
+                "confidence": "medium",
+                "fwhm": 1.4,
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC",
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  529.3,
+                  530.43
+                ],
+                "n_fits": 5,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value.",
+                "note_extra": "provider low-BE O at 529.30-529.39 eV (samples 1-2) has no literature counterpart here"
+              }
+            ]
           },
           {
-            "name": "O_midBE",
+            "name": "O_OH_ads",
             "kind": "single",
-            "center": 530.3,
+            "center": 531.9,
             "bounds": [
-              529.9,
-              530.9
+              531.2,
+              532.4
             ],
             "fwhm": 1.6,
             "fwhm_bounds": [
               0.8,
-              2.5
+              2.6
             ],
-            "role": "O_unresolved_mid",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved mid-BE O (Nb/Ti oxide O candidate; provider 530.05-530.43 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "adsorbate",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "OH adsorbed on surface oxide (OH-TiO2 value on Ti3AlC2).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "OH on TiO2 (Ti3AlC2)",
+                "line": "O 1s",
+                "center": 531.9,
+                "confidence": "medium",
+                "fwhm": 1.6,
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "1_Nb2AlC",
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  531.66,
+                  531.94
+                ],
+                "n_fits": 3,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
-            "name": "O_highBE",
+            "name": "O_Al2O3",
             "kind": "single",
-            "center": 531.8,
+            "center": 532.8,
             "bounds": [
-              531.2,
-              532.6
+              532.3,
+              533.6
             ],
-            "fwhm": 2.4,
+            "fwhm": 1.6,
             "fwhm_bounds": [
-              1.0,
-              3.0
+              0.8,
+              2.6
             ],
-            "role": "other",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved high-BE O (Al2O3/hydroxide/adsorbate candidates; provider 531.66-531.94 eV).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "role": "oxide_O",
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Al2O3 O (value on Ti3AlC2).",
+            "assignment_status": "candidate",
+            "confidence": "medium",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Al2O3 on Ti3AlC2",
+                "line": "O 1s",
+                "center": 532.8,
+                "confidence": "medium",
+                "fwhm": 1.6,
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ]
           }
         ],
         "Al 2p": [
           {
             "name": "Al_MAX",
             "kind": "single",
-            "center": 72.2,
+            "center": 72.0,
             "bounds": [
-              71.6,
+              71.2,
               72.8
             ],
-            "fwhm": 1.4,
+            "fwhm": 1.2,
             "fwhm_bounds": [
-              0.7,
+              0.6,
               2.2
             ],
             "role": "A_site_metal",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Al in the MAX lattice (provider 71.94-72.50 eV). Spin-orbit not resolved; single band.",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Al in the (Nb,Ti)2AlC lattice. Start 72.0 eV = implementation choice between transferred Nb2AlC (72.40) and Ti2AlC (71.49) values; not independently validated for (Nb,Ti)2AlC. Spin-orbit (0.40 eV) unresolved: single band.",
+            "assignment_status": "candidate",
+            "confidence": "low",
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Nb2AlC",
+                "line": "Al 2p3/2",
+                "center": 72.4,
+                "note": "not independently validated for (Nb,Ti)2AlC",
+                "derived": "Al metal 72.76 eV + reported Nb2AlC shift -0.36 eV",
+                "confidence": "medium"
+              },
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Ti2AlC",
+                "line": "Al 2p3/2",
+                "center": 71.49,
+                "confidence": "medium",
+                "derived": "Al metal 72.76 eV + reported Ti2AlC shift -1.27 eV",
+                "note": "not independently validated for (Nb,Ti)2AlC"
+              }
+            ],
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  71.94,
+                  72.04
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           },
           {
             "name": "Al_oxide",
             "kind": "single",
-            "center": 74.1,
+            "center": 74.5,
             "bounds": [
-              73.5,
-              74.8
+              73.6,
+              75.2
             ],
             "fwhm": 1.6,
             "fwhm_bounds": [
@@ -2191,35 +2891,41 @@
               2.4
             ],
             "role": "A_site_oxide",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Al2O3-like surface oxide (provider 73.94-74.32 eV).",
-            "assignment_status": "calibration_candidate",
-            "calibration_candidate": true,
-            "validated": false,
+            "source": "Naslund2020",
+            "source_type": "transferred",
+            "interpretation": "Al2O3-like surface oxide (transferred from the Al2O3 impurity value reported on Ti3AlC2). not independently validated for (Nb,Ti)2AlC.",
+            "assignment_status": "candidate",
             "confidence": "medium",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
-          },
-          {
-            "name": "Al_highBE",
-            "kind": "single",
-            "center": 75.6,
-            "bounds": [
-              74.9,
-              76.5
+            "calibration_candidate": false,
+            "validated": true,
+            "provenance": "KB 1.4.0 (2026-11-02): starting center from transferred reference (Naslund2020); bounds/fwhm_bounds are editable implementation windows, not literature constants.",
+            "fwhm_basis": "implementation default (resolution/pass-energy dependent), not a literature constant",
+            "transferred_reference": [
+              {
+                "reference_type": "transferred_reference",
+                "source": "Naslund2020",
+                "material": "Al2O3 impurity on Ti3AlC2 (figure caption value, ~74.5 eV)",
+                "line": "Al 2p",
+                "center": 74.5,
+                "confidence": "medium"
+              }
             ],
-            "fwhm": 1.5,
-            "fwhm_bounds": [
-              0.8,
-              2.4
-            ],
-            "role": "other",
-            "source": "Sasaki2026MultiPak",
-            "interpretation": "Unresolved high-BE Al (provider 75.26-76.07 eV; e.g. Al-F or hydroxide candidates).",
-            "assignment_status": "unresolved",
-            "calibration_candidate": true,
-            "validated": false,
-            "confidence": "low",
-            "provenance": "Calibration candidate (KB 1.3.0, 2026-11-02): starting value/window derived from provider fits (Sasaki2026MultiPak); not literature, not validated."
+            "calibration_observations": [
+              {
+                "reference_type": "provider_calibration_observation",
+                "source": "Sasaki2026MultiPak",
+                "samples": [
+                  "2_(Nb0.9Ti0.1)2AlC",
+                  "3_(Nb0.6Ti0.4)2AlC"
+                ],
+                "BE_range": [
+                  73.94,
+                  73.97
+                ],
+                "n_fits": 2,
+                "note": "Provider PHI MultiPak fit of the real data; observation only, never a KB reference or starting value."
+              }
+            ]
           }
         ]
       },
@@ -2300,7 +3006,7 @@
     "area_fraction_abs_review": 0.2,
     "note": "Thresholds are conservative QC defaults, not literature constants; expose them to the user. Brette et al. estimate ~0.5 eV numerical uncertainty for their DFT BE calculations and note experimental resolutions around ~0.3 eV in cited MXene work."
   },
-  "kb_version": "1.3.1",
+  "kb_version": "1.4.0",
   "seed_version": "0.1.0",
   "created_at": "2026-10-15",
   "reviewed_by": null,
@@ -2332,6 +3038,11 @@
       "version": "1.3.1",
       "date": "2026-11-02",
       "note": "Metadata only: D4 marked calibration-sensitive for Nb 3d (KB 2.8 eV kept; fixed-grid sensitivity) and decided for Ti 2p (literature splitting kept, provider 6.17 eV not adopted, Ti 2p3/2 prioritized); O 1s cross-check of Nb_suboxide_like recorded as inconclusive; candidate remains unvalidated; delta not finalized. MAX profiles unchanged."
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-11-02",
+      "note": "MAX-phase literature calibration: nb2alc_max starting values from Nb2AlC references (user-supplied values, citation pending; Al 2p from Naslund2020); nbti_211_max = transferred model (Nb2AlC + Ti3AlC2/TiC/Ti2AlC references; no direct (Nb,Ti)2AlC peak table found), labelled source_type=transferred. Provider fit values kept only as calibration_observations. Provider-only components dropped (Al ~75.3-76.1 eV; O ~529.3 eV; documented). Nb_suboxide_like, D4 status and spin-orbit splittings unchanged."
     }
   ],
   "spec_discrepancies": [
@@ -2395,6 +3106,10 @@
       "Nb_suboxide_like (Nb 3d ~205.6-205.9 eV) not validated; O 1s cross-check inconclusive",
       "D4: Nb 3d spin-orbit splitting is calibration-sensitive for Nb2CTx"
     ],
-    "ti2p_interpretation": "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap)."
+    "ti2p_interpretation": "Prioritize Ti 2p3/2; do not over-trust Ti 2p1/2 (Nb 3s overlap).",
+    "max_profiles": {
+      "nb2alc_max": "literature (Nb 3d / C 1s citation pending; Al 2p Naslund2020); O 1s, Al oxide, contamination C transferred",
+      "nbti_211_max": "transferred (no direct (Nb,Ti)2AlC peak table found); not independently validated for (Nb,Ti)2AlC"
+    }
   }
 }

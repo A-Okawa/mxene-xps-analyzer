@@ -1,2 +1,2 @@
 """MAX/MXene XPS Analyzer – defect/dopant-aware XPS request generation, quantification and QC."""
-__version__ = "1.3.1"
+__version__ = "1.4.0"

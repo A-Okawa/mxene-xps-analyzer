@@ -376,11 +376,15 @@ with tab_v:
                               "ΔSO": x.split, "ratio": x.ratio_primary_secondary,
                               "calibration": _cal_text(x),
                               "literature reference (display only)": x.literature_summary(),
-                              "source": x.source, "DOI": KB.references[x.source].get("doi")} for x in kb_comps])
+                              "transferred reference (display only)": x.transferred_summary(),
+                              "provider observation (display only)": x.observation_summary(),
+                              "basis": x.source_type or "", "source": x.source,
+                              "DOI": KB.references[x.source].get("doi")} for x in kb_comps])
     ver = st.session_state.setdefault("model_reset", 0)
     edited_model = st.data_editor(
         model_df, hide_index=True, key=f"model_{profile_key}_{core}_{ver}",
-        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "calibration", "literature reference (display only)", "source", "DOI"])
+        disabled=["name", "kind", "role", "status", "ΔSO", "ratio", "calibration", "literature reference (display only)",
+                  "transferred reference (display only)", "provider observation (display only)", "basis", "source", "DOI"])
     if st.button("Reset model to knowledge-base values"):
         st.session_state["model_reset"] = ver + 1
         st.rerun()
@@ -564,6 +568,9 @@ with tab_kb:
         st.dataframe(pd.DataFrame([{"name": x.name, "center": x.center, "bounds": f"{x.bounds[0]}–{x.bounds[1]}",
                                     "FWHM": x.fwhm, "FWHM bounds": f"{x.fwhm_bounds[0]}–{x.fwhm_bounds[1]}",
                                     "literature reference (display only)": x.literature_summary(),
+                                    "transferred reference (display only)": x.transferred_summary(),
+                                    "provider observation (display only)": x.observation_summary(),
+                                    "start-value basis": x.source_type or "",
                                     "literature interpretation": x.literature_interpretation or "",
                                     "role": x.role, "status": x.assignment_status, "calibration": _cal_text(x),
                                     "alternative interpretation": x.alternative_interpretation or "",

@@ -31,6 +31,7 @@ ROLE_LABELS: dict[str, str] = {
     "other": "other / unclassified",
 }
 ROLES = tuple(ROLE_LABELS)
+SOURCE_TYPES = ("literature", "transferred", "implementation_surrogate", "provider_derived")
 DOPANT_ROLES = ("dopant_lattice_candidate", "dopant_adsorbed", "dopant_oxide")
 
 # --- Status vocabulary (§20) -------------------------------------------------
@@ -88,6 +89,15 @@ class FitComponent:
     alternative_interpretation: Optional[str] = None
     alternative_role: Optional[str] = None            # role under the alternative interpretation (reported, not used)
     cross_check: Optional[list] = None                # core levels that must be checked, e.g. ["O 1s"]
+    # KB >= 1.4.0: provenance class of the STARTING value, and three separate reference layers (display/metadata
+    # only; never constraints):
+    #   literature_reference          – values reported for this material (citation required, or citation pending)
+    #   transferred_reference         – values reported for related materials, transferred (not independently validated)
+    #   calibration_observations      – provider fit values of the real data (observations, never reference values)
+    source_type: Optional[str] = None                 # literature | transferred | implementation_surrogate | provider_derived
+    transferred_reference: Optional[list] = None
+    calibration_observations: Optional[list] = None
+    fwhm_basis: Optional[str] = None
 
     def __post_init__(self) -> None:
         if self.kind not in ("single", "doublet"):
@@ -105,6 +115,14 @@ class FitComponent:
                 raise ValueError(f"{self.name}: doublet requires split and a positive ratio_primary_secondary")
         if not self.source:
             raise ValueError(f"{self.name}: every component needs a source key")
+        if self.source_type is not None and self.source_type not in SOURCE_TYPES:
+            raise ValueError(f"{self.name}: unknown source_type {self.source_type!r}")
+        for lst, kind in ((self.literature_reference, "literature_reference"),
+                          (self.transferred_reference, "transferred_reference"),
+                          (self.calibration_observations, "provider_calibration_observation")):
+            for e in lst or []:
+                if e.get("reference_type", kind) != kind:
+                    raise ValueError(f"{self.name}: entry of type {e.get('reference_type')!r} stored under {kind}")
         if not self.interpretation:
             raise ValueError(f"{self.name}: every component needs an interpretation caveat (§11)")
         if self.alternative_role is not None and self.alternative_role not in ROLE_LABELS:
@@ -128,23 +146,37 @@ class FitComponent:
             validated=bool(d.get("validated", not d.get("calibration_candidate", False))),
             confidence=d.get("confidence"), alternative_interpretation=d.get("alternative_interpretation"),
             alternative_role=d.get("alternative_role"), cross_check=d.get("cross_check"),
+            source_type=d.get("source_type"), transferred_reference=d.get("transferred_reference"),
+            calibration_observations=d.get("calibration_observations"), fwhm_basis=d.get("fwhm_basis"),
         )
 
     def to_dict(self) -> dict:
         return asdict(self)
 
+    @staticmethod
+    def _ref_text(r: dict) -> str:
+        tag = "/".join(str(x) for x in (r.get("material"), r.get("dataset"),
+                                         f"Table {r['table']}" if r.get("table") else None) if x)
+        t = f"{r['center']} eV" + (f" (FWHM {r['fwhm']})" if r.get("fwhm") is not None else "")
+        if r.get("si_label"):
+            t += f" {r['si_label']}"
+        if r.get("secondary"):
+            sec = r["secondary"]
+            t += f"; {sec['line']} {sec['center']} eV" + (f" (FWHM {sec['fwhm']})" if sec.get("fwhm") is not None else "")
+        if r.get("citation_status") == "pending":
+            t += " [citation pending]"
+        return f"{r['source']} {tag}: {t}" if tag else f"{r['source']}: {t}"
+
     def literature_summary(self) -> str:
         """One-line, human-readable list of literature reference values (display only)."""
-        parts = []
-        for r in self.literature_reference or []:
-            tag = "/".join(x for x in (r.get("dataset"), f"Table {r['table']}" if r.get("table") else None) if x)
-            t = f"{r['center']} eV (FWHM {r['fwhm']})"
-            if r.get("si_label"):
-                t += f" {r['si_label']}"
-            if r.get("secondary"):
-                t += f"; {r['secondary']['line']} {r['secondary']['center']} eV (FWHM {r['secondary']['fwhm']})"
-            parts.append(f"{r['source']} {tag}: {t}" if tag else f"{r['source']}: {t}")
-        return " | ".join(parts)
+        return " | ".join(self._ref_text(r) for r in self.literature_reference or [])
+
+    def transferred_summary(self) -> str:
+        return " | ".join(self._ref_text(r) + f" (transferred, {r.get('confidence')})" for r in self.transferred_reference or [])
+
+    def observation_summary(self) -> str:
+        return " | ".join(f"provider {o['BE_range'][0]:.2f}-{o['BE_range'][1]:.2f} eV ({', '.join(o['samples'])})"
+                          for o in self.calibration_observations or [])
 
 
 @dataclass

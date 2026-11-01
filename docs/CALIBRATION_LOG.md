@@ -98,3 +98,51 @@ lists `calibration_status.delta_finalization_blocked_by`.
 - Constrain the candidate with information independent of the Nb 3d / O 1s decompositions (e.g. sputter-free
   angle-resolved data, Nb 3d valence-band / XAS / EELS, or a reference NbO2/NbO/Nb2O5 measurement on the same instrument).
 - Replace MAX starting values with literature values (pending).
+
+## MAX-phase literature calibration (app/KB 1.4.0, 2026-11-02)
+
+Unchanged: `Nb_suboxide_like` (unvalidated, non-framework, δ provisional), D4 (calibration-sensitive), all spin-orbit
+splittings, and the three MXene profiles (byte-identical to 1.3.1).
+
+**Three reference layers** on every MAX component (enforced by `FitComponent` and `tests/test_max_literature.py`):
+`literature_reference` (same material; citation or `citation_status: pending`), `transferred_reference` (related
+material; confidence + note), `calibration_observations` (provider fit values; observations only). The starting value's
+basis is `source_type` ∈ literature / transferred / implementation_surrogate.
+
+### Literature used
+- **Naslund2020**: Näslund, Persson, Rosen, *J. Phys. Chem. C* 124, 27732 (2020), doi:10.1021/acs.jpcc.0c07413
+  (Fermi-edge referenced). Ti3AlC2 Ti–C 454.75/460.75 eV (ΔSO 6.00), TiO2 458.8–459.0 eV (ΔSO 5.8), C 1s 281.88 eV,
+  Al 2p3/2 72.13 eV, Al metal 72.76 eV, Al 2p shifts Ti2AlC −1.27 and Nb2AlC −0.36 eV, Al2O3 ~74.5 eV, O 1s TiO2 530.55 /
+  OH–TiO2 531.9 / Al2O3 532.8 eV.
+- **Greczynski2018Carbides**: Greczynski, Primetzhofer, Hultman, *Appl. Surf. Sci.* 436, 102 (2018),
+  doi:10.1016/j.apsusc.2017.11.264 (ISO-calibrated). NbC Nb 3d5/2 203.91 eV, native oxide 3d3/2 209.8 eV; TiC Ti 2p3/2
+  ~454.7 eV, oxide 458.30 eV. Supporting / transferred only.
+- **UserNb2AlC2026**: Nb2AlC values supplied by the user (Nb–C 202.9/205.5, Nb oxide 206.8/209.6, C–Nb 282.5 eV).
+  **The original publication was not located in this session → `citation_status: pending`, DOI empty.** Add the
+  citation before treating these values as fully cited literature.
+- Direct XPS peak table for pristine (Nb,Ti)2AlC / Ti–Nb 211 MAX: **not found** → `nbti_211_max` is a transferred model.
+
+### Profiles
+| Profile | Component | Start (eV) | Basis | Confidence |
+|---|---|---|---|---|
+| nb2alc_max | Nb_MAX / Nb2O5 / C_MAX | 202.9 / 206.8 / 282.5 | literature (citation pending) | medium |
+| nb2alc_max | Al_MAX | 72.40 | literature (Naslund2020, Nb2AlC shift) | medium |
+| both | Nb_MAX_2nd | Nb_MAX + 1.0 | implementation surrogate for the asymmetric MAX line | low |
+| both | Al_oxide, O_oxide, O_OH_ads, O_Al2O3, contamination C | 74.5, 530.5, 531.9, 532.8, Halim C values | transferred | medium |
+| nbti_211_max | Ti_MAX / Ti_oxide | 454.75 / 458.8 | transferred (Ti3AlC2, TiO2 on TiC) | medium |
+| nbti_211_max | Nb_MAX / Nb2O5 | 202.9 / 206.8 | transferred from Nb2AlC | low |
+| nbti_211_max | C_MAX / Al_MAX | 282.2 / 72.0 | transferred; midpoint between Nb2AlC and Ti3AlC2/Ti2AlC values | low |
+
+Dropped (provider-only, no literature counterpart; kept as notes): Al 2p ~75.3–76.1 eV, O 1s ~529.3–529.4 eV,
+Nb 3d 201.80 eV (sample 1).
+
+### Effect on the Sasaki MAX spectra (RMSE; 1.3.0 provider-derived → 1.4.0 literature)
+Nb 3d: 77.4 → 72.6 (1), 70.1 → 70.1 (2), 50.7 → 50.7 (3). O 1s: 59.5 → 128.7 (1), 89.8 → 105.3 (2), 73.8 → 82.5 (3).
+Al 2p: 8.9 → 12.5 (1), 10.0 → 10.6 (2), 10.7 → 13.1 (3). C 1s and Ti 2p unchanged within 1 count.
+In all three MAX Nb 3d fits `Nb_suboxide_like` ends on a window edge (205.4 or 206.4 eV): with Nb_MAX 3d3/2 at
+~205.5–205.7 eV the candidate is not identifiable in MAX spectra.
+
+### Open
+- Citation for the user-supplied Nb2AlC values.
+- Literature splittings differ from the KB convention (Nb2AlC pair implies 2.6 eV; Ti3AlC2 Ti–C 6.00 eV) — recorded only (D4).
+- Literature for the provider's O 1s ~529.3 eV and Al 2p ~75.3–76.1 eV components.

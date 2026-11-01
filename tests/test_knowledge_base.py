@@ -40,8 +40,11 @@ def test_every_component_has_source_doi_and_caveat(kb):
         for core, comps in kb.fit_models(pkey).items():
             for c in comps:
                 assert c.interpretation and c.source in kb.references
+                ref = kb.references[c.source]
                 if c.calibration_candidate:     # data-derived (no DOI) is allowed only for unvalidated candidates
-                    assert not c.validated and kb.references[c.source].get("use"), c.name
+                    assert not c.validated and ref.get("use"), c.name
+                elif ref.get("citation_status") == "pending":   # user-supplied literature value, citation to be added
+                    assert ref.get("use") and "pending" in ref["use"].lower() or "citation" in ref["use"].lower(), c.source
                 else:
                     assert kb.references[c.source].get("doi"), c.source
 
