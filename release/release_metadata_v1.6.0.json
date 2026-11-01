@@ -1,0 +1,62 @@
+{
+  "release": "v1.6.0-rc",
+  "app_version": "1.6.0",
+  "kb_version": "1.5.0",
+  "generated_from_commit": "6928ed0",
+  "commit_note": "The release commit that adds this file is the child of generated_from_commit.",
+  "python": "3.12.2",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "packages": {
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pandas": "2.3.3",
+    "streamlit": "1.66.0",
+    "matplotlib": "3.11.2"
+  },
+  "date": "2026-11-01T23:54:31+00:00",
+  "tests": {
+    "without_private_data": {
+      "summary": "164 passed, 9 skipped in 10.07s",
+      "returncode": 0,
+      "passed": 164,
+      "skipped": 9
+    },
+    "with_private_data": {
+      "summary": "173 passed in 10.79s",
+      "returncode": 0,
+      "passed": 173
+    }
+  },
+  "private_data_regression_tests_run": true,
+  "legacy_workbook_test_run": true,
+  "e2e": {
+    "synthetic_browser": "pass",
+    "real_validation_tab": "pass",
+    "real_cross_sample_tab": "pass",
+    "synthetic_example_cross_sample_tab": "pass",
+    "clean_checkout_tests": "pass"
+  },
+  "numerical_outputs_unchanged_vs_kb150_baseline": "yes",
+  "frozen_scientific_state": [
+    "Nb_suboxide_like (Nb 3d ~205.6-205.9 eV) not validated; O 1s cross-check inconclusive",
+    "D4: Nb 3d spin-orbit splitting is calibration-sensitive for Nb2CTx"
+  ],
+  "scientific_open_issues": [
+    "Nb 3d ~205.7-205.9 eV component (Nb_suboxide_like) is not chemically validated; O 1s cross-check inconclusive.",
+    "Apparent M-site deficiency delta is model-dependent and provisional (candidate excluded vs counted as framework).",
+    "D4: Nb 3d spin-orbit splitting is calibration-sensitive (KB constraint 2.8 eV kept).",
+    "Ti 2p in mixed Nb/Ti samples is affected by Nb 3s overlap; interpret Ti 2p3/2 first.",
+    "O1: MAX Nb_MAX and Nb_MAX_2nd are strongly correlated; interpret their sum.",
+    "O2: provider-fraction vs Python-fraction decompositions give different delta.",
+    "O3: sample 2 provider Ti quantification is biased low (only Ti 2p3/2 fitted).",
+    "O4: sample 1 MAX M_norm = 1.00 is a numerical coincidence; not interpreted.",
+    "Sample-1 low-BE Nb 3d feature (unresolved_low_BE_Nb) is real extra intensity but non-identifiable; unassigned.",
+    "Cl 2p, S 2p and Li 1s have no validated KB fit model.",
+    "Transferred models (e.g. nbti_211_max) are not equivalent to direct literature validation."
+  ],
+  "interpretation_levels": {
+    "fit_succeeded": "optimizer converged and residuals are reported; says nothing about uniqueness or chemistry",
+    "statistically_identifiable": "component parameters are determined by the data within this model (see identifiability status)",
+    "chemically_validated": "assignment confirmed by orthogonal evidence; never claimed by this app"
+  }
+}
