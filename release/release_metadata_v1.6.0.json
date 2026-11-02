@@ -1,5 +1,5 @@
 {
-  "release": "v1.6.0-rc",
+  "release": "v1.6.0-rc1",
   "app_version": "1.6.0",
   "kb_version": "1.5.0",
   "generated_from_commit": "6928ed0",
@@ -58,5 +58,24 @@
     "fit_succeeded": "optimizer converged and residuals are reported; says nothing about uniqueness or chemistry",
     "statistically_identifiable": "component parameters are determined by the data within this model (see identifiability status)",
     "chemically_validated": "assignment confirmed by orthogonal evidence; never claimed by this app"
+  },
+  "status": "release candidate",
+  "validation": {
+    "calibration_development_dataset": "261030_sasakiXPS (5 samples: Nb2AlC, (Nb0.9Ti0.1)2AlC, (Nb0.6Ti0.4)2AlC, Nb2CTx, (Nb0.6Ti0.4)2CTx)",
+    "calibration_development_dataset_tested": true,
+    "independent_validation": false,
+    "prospective_holdout_validation": "not yet performed",
+    "holdout_tooling": [
+      "tools/validation/holdout_first_pass.py",
+      "tools/validation/compare_sets.py",
+      "docs/HOLDOUT_VALIDATION.md"
+    ],
+    "future_workflow": [
+      "1. Obtain a genuinely independent XPS dataset measured after this frozen release candidate.",
+      "2. Run tools/validation/holdout_first_pass.py against the frozen baseline (f466b94: app 1.6.0, KB 1.5.0).",
+      "3. Preserve the untouched first-pass outputs.",
+      "4. Review A-D classifications before changing the KB.",
+      "5. Only after prospective validation decide whether a scientific-model revision is necessary."
+    ]
   }
 }

@@ -1,8 +1,17 @@
-# Hold-out validation protocol (v1.6.0 RC, frozen baseline f466b94)
+# Prospective hold-out validation protocol (v1.6.0-rc1, frozen baseline f466b94)
 
-**Status (2026-11-02): waiting for the hold-out data (samples 6–10).** No hold-out spectra were found on the analysis
-machine; nothing has been fitted, tuned or fabricated. The frozen first-pass harness is ready and was run on the
-calibration set (samples 1–5) to provide the reference side of the comparison.
+**Status (2026-11-02): prospective hold-out validation — not yet performed.** No independent dataset exists yet.
+The only real XPS dataset, `261030_sasakiXPS` (samples 1–5), is the **calibration/development dataset**: it was used to
+develop and calibrate the model and is therefore **not** independent validation. The frozen first-pass harness is kept
+for future prospective validation and was run on the calibration set only to provide the reference side of a future
+comparison.
+
+## Future prospective-validation workflow
+1. Obtain a genuinely independent XPS dataset measured after this frozen release candidate.
+2. Run `tools/validation/holdout_first_pass.py` against the frozen baseline (`f466b94`: app 1.6.0, KB 1.5.0).
+3. Preserve the untouched first-pass outputs (never overwritten; later runs use a new label).
+4. Review the A–D classifications before changing the KB.
+5. Only after prospective validation decide whether a scientific-model revision is necessary.
 
 ## Frozen state (must not change during the first pass)
 App 1.6.0 · KB 1.5.0 (`data/knowledge_base.json` sha256 `b5d49f7e…b60`) · baseline commit `f466b94` · all peak models,
@@ -32,7 +41,7 @@ messages with severity, issues, input sha256, frozen-state record), `issues_<lab
 - D: provider components outside every KB window that are not documented calibration observations.
 Patterns are compared across sets by sample-independent signatures (reproduced / new / not seen).
 
-## Calibration-set reference (samples 1–5, frozen first pass)
+## Calibration/development-set reference (samples 1–5, frozen first pass; not a validation result)
 46 fits (raw full region + provider curve window), 100 % fit success, 0 import failures; RMSE median 65.6
 (raw full region 179.7, provider window 50.7); provider-vs-Python QC FAIL 15 / CHECK-MISSING 12 / REVIEW 12 /
 PASS 7; identifiability non-identifiable 105, weakly 28, identifiable 14, boundary-limited 9; 31 boundary hits;

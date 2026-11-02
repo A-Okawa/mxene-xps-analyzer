@@ -1,6 +1,8 @@
-# MAX/MXene XPS Analyzer — v1.6.0 (release candidate)
+# MAX/MXene XPS Analyzer — v1.6.0-rc1 (release candidate)
 
-App **1.6.0**, knowledge base (KB) **1.5.0**, branch `calibration/real-xps`.
+App **1.6.0**, knowledge base (KB) **1.5.0**, branch `calibration/real-xps`, tag `v1.6.0-rc1`.
+
+**Validation status:** Calibration/development dataset tested (261030_sasakiXPS, samples 1–5; used to develop and calibrate the model, therefore not independent validation). Prospective hold-out validation: not yet performed. Protocol and tooling for future prospective validation: [`docs/HOLDOUT_VALIDATION.md`](docs/HOLDOUT_VALIDATION.md).
 Calibration history: [`docs/CALIBRATION_LOG.md`](docs/CALIBRATION_LOG.md). Machine-readable release record:
 [`release/release_metadata_v1.6.0.json`](release/release_metadata_v1.6.0.json).
 
@@ -135,3 +137,4 @@ Browser E2E (synthetic): start `streamlit run app.py --server.headless true --se
 - **Cl 2p, S 2p and Li 1s have no validated KB fit model.**
 - **Transferred models** (e.g. `nbti_211_max`) are **not equivalent to direct literature validation**.
 - XPS alone cannot give absolute vacancy concentrations; orthogonal evidence is required.
+- All real-data results so far come from the **calibration/development dataset** (5 samples); **prospective hold-out validation has not yet been performed**.
