@@ -53,3 +53,23 @@ def test_switching_profile_after_fit_does_not_crash():
     assert not at.exception
     at.sidebar.selectbox[0].select("Ti3C2Tx").run()
     assert not at.exception
+
+
+def _gated(password="lab-secret"):
+    at = st_testing.AppTest.from_file(APP, default_timeout=120)
+    at.secrets["password"] = password
+    return at
+
+
+def test_password_gate_blocks_until_correct_password():
+    at = _gated().run()
+    assert not at.exception
+    assert len(at.tabs) == 0 and len(at.file_uploader if hasattr(at, "file_uploader") else []) == 0
+    at.text_input(key="_auth_pw").set_value("wrong").run()
+    assert len(at.tabs) == 0 and any("Incorrect password" in e.value for e in at.error)
+    at.text_input(key="_auth_pw").set_value("lab-secret").run()
+    assert not at.exception and len(at.tabs) == 6
+
+
+def test_no_password_secret_means_no_gate():
+    assert len(_app().tabs) == 6

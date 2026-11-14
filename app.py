@@ -52,6 +52,33 @@ STATUS_COLOR = {"PASS": "#d8f0d8", "CHECK": "#fff0c2", "REVIEW": "#fff0c2", "CHE
 st.set_page_config(page_title="MAX/MXene XPS Analyzer", layout="wide")
 
 
+def require_password() -> None:
+    """Optional access gate for shared deployments.
+
+    Active only when a ``password`` entry exists in Streamlit secrets (e.g. on Streamlit Community Cloud).
+    Without a secrets file (local use, tests) the app opens directly.
+    """
+    import hmac
+
+    try:
+        expected = st.secrets.get("password")
+    except Exception:  # no secrets file configured
+        expected = None
+    if not expected or st.session_state.get("_auth_ok"):
+        return
+    st.title("MAX/MXene XPS Analyzer")
+    entered = st.text_input("Password", type="password", key="_auth_pw")
+    if entered:
+        if hmac.compare_digest(entered.encode(), str(expected).encode()):
+            st.session_state["_auth_ok"] = True
+            st.rerun()
+        st.error("Incorrect password.")
+    st.stop()
+
+
+require_password()
+
+
 def style_status(df: pd.DataFrame):
     cols = [c for c in df.columns if c == "QC" or c.startswith("QC_") or c == "metal_QC"]
     fmt = {c: "{:.4g}" for c in df.columns if pd.api.types.is_float_dtype(df[c])}
@@ -150,7 +177,8 @@ with st.sidebar:
             md.sputter_energy_eV = st.number_input("Sputter energy (eV)", min_value=0.0, value=0.0) or None
             md.sputter_time_s = st.number_input("Sputter time (s)", min_value=0.0, value=0.0) or None
     st.divider()
-    st.caption(f"App v{__version__} · knowledge base v{KB.version}. Runs locally; no data leave this server.")
+    st.caption(f"App v{__version__} · knowledge base v{KB.version}. Uploaded files are processed in memory by the server "
+               "running this app and are not sent to any other service.")
 
 setup = SampleSetup(sample_name=sample_name, structure=structure, m_target=m_target, x_target=x_target,
                     profile_key=profile_key, m_elements=m_elements, etchants=etchants, a_element=a_element,
@@ -168,6 +196,8 @@ for d in dopants:
 st.title("MAX/MXene XPS Analyzer")
 st.caption("Defect/dopant-aware XPS request generation, quantification, and provider-vs-Python validation. "
            "Binding energy is not treated as a one-to-one chemical-state lookup.")
+st.caption("Validation status: release candidate. Calibrated on one development dataset; prospective hold-out "
+           "validation not yet performed. Treat fit-based results as provisional (see tab 4 and the README).")
 ctx_warn = metadata_warnings(md)
 if ctx_warn:
     with st.expander(f"⚠ Measurement-context warnings ({len(ctx_warn)})", expanded=md.sputtered):

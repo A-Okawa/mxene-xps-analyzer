@@ -45,6 +45,14 @@ pip install -r requirements.txt
 streamlit run app.py                                   # http://localhost:8501
 ```
 
+### Shared deployment (Streamlit Community Cloud)
+
+Deploy `app.py` from branch `calibration/real-xps` with Python 3.12 (`requirements.txt` is pinned to the versions in
+`release/release_metadata_v1.6.0.json`). To restrict access, add `password = "..."` under *Settings → Secrets*; the
+app then asks for it before showing anything. Without that secret (local use, tests) there is no gate.
+On a shared deployment, uploaded files are processed in memory on the hosting server; keep the repository private,
+because the knowledge base and calibration log contain observations from unpublished data.
+
 Nothing is sent to external services. Unpublished data are uploaded at runtime only and are never written to the
 repository (`.gitignore` blocks data formats; only synthetic fixtures, templates and the synthetic example are tracked).
 
