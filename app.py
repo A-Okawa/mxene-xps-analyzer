@@ -47,6 +47,7 @@ from mxene_xps.validation import (IDENTIFIABILITY_WARNING, compare_components, c
 
 import i18n  # noqa: E402
 from i18n import ui  # noqa: E402
+from upload_match import match_uploads  # noqa: E402
 
 KB = default_kb()
 FIX = ROOT / "tests" / "fixtures"
@@ -248,23 +249,23 @@ with st.expander(ui("📖 使い方", "📖 How to use"), expanded=not _started)
         "for what you want to do."))
     st.markdown(ui(
         "| やりたいこと | タブ | 用意するもの |\n|---|---|---|\n"
-        "| 業者に測定・フィットを依頼する | **1. 測定依頼** | なし（依頼文をダウンロード） |\n"
-        "| 業者から届いたデータを試料ごとに並べて見る | **2. 一括読込・試料比較** | 業者の報告書（MultiPak の .pptx か Curve Fit Summary）、生データ `*_multi.csv`（任意） |\n"
-        "| 1 本のスペクトルを自分でフィットし、業者の結果と照合する | **3. フィット検証** | 生データ（`*_multi.csv` か 2 列の CSV）、業者のフィット結果（任意） |\n"
-        "| ピーク面積から M サイト欠損・終端基を計算する | **4. 定量** | 成分表の CSV（テンプレートあり） |\n"
-        "| 結果をまとめて保存する | **5. レポート** | 2〜4 で出した結果 |\n"
-        "| 初期値・帰属の根拠と文献を確かめる | **6. 知識ベース** | なし |",
+        "| 業者から届いたデータを試料ごとに並べて見る | **1. 一括読込・試料比較** | 業者の報告書（MultiPak の .pptx か Curve Fit Summary）、同じフォルダの CSV（任意） |\n"
+        "| 1 本のスペクトルを自分でフィットし、業者の結果と照合する | **2. フィット検証** | 生データ（`*_multi.csv` か 2 列の CSV）、業者のフィット結果（任意） |\n"
+        "| ピーク面積から M サイト欠損・終端基を計算する | **3. 定量** | 成分表の CSV（テンプレートあり） |\n"
+        "| 結果をまとめて保存する | **4. レポート** | 1〜3 で出した結果 |\n"
+        "| 初期値・帰属の根拠と文献を確かめる | **5. 知識ベース** | なし |\n"
+        "| 次の測定・フィットを業者に依頼する | **6. 測定依頼** | なし（依頼文をダウンロード） |",
         "| I want to… | Tab | What you need |\n|---|---|---|\n"
-        "| ask a provider to measure and fit | **1. Request** | nothing (download the request text) |\n"
-        "| see a provider's data side by side, sample by sample | **2. Import & compare** | provider report (MultiPak .pptx or Curve Fit Summary), raw `*_multi.csv` (optional) |\n"
-        "| fit one spectrum myself and check it against the provider | **3. Fit check** | raw data (`*_multi.csv` or a two-column CSV), provider fit (optional) |\n"
-        "| compute M-site deficiency and terminations from peak areas | **4. Quantification** | component CSV (template provided) |\n"
-        "| save everything in one report | **5. Report** | results from tabs 2–4 |\n"
-        "| check starting values, assignments and references | **6. Knowledge base** | nothing |"))
+        "| see a provider's data side by side, sample by sample | **1. Import & compare** | provider report (MultiPak .pptx or Curve Fit Summary), the CSV files from the same folder (optional) |\n"
+        "| fit one spectrum myself and check it against the provider | **2. Fit check** | raw data (`*_multi.csv` or a two-column CSV), provider fit (optional) |\n"
+        "| compute M-site deficiency and terminations from peak areas | **3. Quantification** | component CSV (template provided) |\n"
+        "| save everything in one report | **4. Report** | results from tabs 1–3 |\n"
+        "| check starting values, assignments and references | **5. Knowledge base** | nothing |\n"
+        "| ask a provider for the next measurement and fit | **6. Request** | nothing (download the request text) |"))
     st.markdown(ui(
-        "データが手元になくても、タブ 2 と 3 の **合成デモデータで試す** で一通りの動きを確かめられます。"
+        "データが手元になくても、タブ 1 と 2 の **合成デモデータで試す** で一通りの動きを確かめられます。"
         "ファイルは業者から届いた名前のまま入れてください（報告書と生データをファイル名で対応付けます）。",
-        "Without data of your own, **Try with synthetic demo data** in tabs 2 and 3 shows the whole flow. Keep the "
+        "Without data of your own, **Try with synthetic demo data** in tabs 1 and 2 shows the whole flow. Keep the "
         "provider's file names unchanged (the report and the raw files are matched by name)."))
 
 ctx_warn = metadata_warnings(md)
@@ -274,10 +275,10 @@ if ctx_warn:
         for w in ctx_warn:
             say(w)
 
-tab_req, tab_x, tab_v, tab_q, tab_rep, tab_kb = st.tabs(
-    [ui("1. 測定依頼", "1. Request"), ui("2. 一括読込・試料比較", "2. Import & compare"),
-     ui("3. フィット検証", "3. Fit check"), ui("4. 定量", "4. Quantification"),
-     ui("5. レポート", "5. Report"), ui("6. 知識ベース", "6. Knowledge base")])
+tab_x, tab_v, tab_q, tab_rep, tab_kb, tab_req = st.tabs(
+    [ui("1. 一括読込・試料比較", "1. Import & compare"), ui("2. フィット検証", "2. Fit check"),
+     ui("3. 定量", "3. Quantification"), ui("4. レポート", "4. Report"),
+     ui("5. 知識ベース", "5. Knowledge base"), ui("6. 測定依頼", "6. Request")])
 
 
 def steps(ja: str, en: str) -> None:
@@ -857,8 +858,8 @@ with tab_v:
 
 # ------------------------------------------------------------------ 4 KB
 with tab_kb:
-    steps("このアプリが使う初期値・範囲・帰属の根拠と文献です。内容は英語のままです。数値はここではなく、タブ 3 の「開始モデル」で編集できます。",
-          "Starting values, windows, assignment rationale and references used by the app. Values are edited in tab 3 "
+    steps("このアプリが使う初期値・範囲・帰属の根拠と文献です。内容は英語のままです。数値はここではなく、タブ 2 の「開始モデル」で編集できます。",
+          "Starting values, windows, assignment rationale and references used by the app. Values are edited in tab 2 "
           "(Starting model), not here.")
     st.subheader(ui("解釈の原則", "Interpretation principles"))
     for p in KB.raw["principles"]:
@@ -901,8 +902,8 @@ with tab_kb:
 
 # ------------------------------------------------------------------ 5 report
 with tab_rep:
-    steps("タブ 2〜4 で出した結果（定量・フィット・照合）を、試料の設定・測定条件・文献・未解決の課題と一緒に 1 つにまとめて保存します。",
-          "Saves the results of tabs 2–4 (quantification, fits, QC) together with the sample setup, measurement "
+    steps("タブ 1〜3 で出した結果（比較・フィット・照合・定量）を、試料の設定・測定条件・文献・未解決の課題と一緒に 1 つにまとめて保存します。",
+          "Saves the results of tabs 1–3 (comparison, fits, QC, quantification) together with the sample setup, measurement "
           "conditions, references and open issues.")
     st.subheader(ui("レポートと出力", "Report & export"))
     q = st.session_state.get("quant")
@@ -1000,12 +1001,12 @@ class _DemoFile:
 
 
 with tab_x:
-    steps("① 業者の報告書（MultiPak の .pptx か Curve Fit Summary）を入れる → ② 生データ `*_multi.csv` を入れる（任意。"
-          "入れると Python の再フィットも並べます） → ③ 試料メタデータ（任意） → 下に試料ごとの比較表が出ます。"
+    steps("① 業者の報告書（MultiPak の .pptx か Curve Fit Summary）を入れる → ② 同じフォルダの CSV をまとめて入れる（任意。"
+          "入れると Python の再フィットも並べます） → ③ 試料メタデータ（任意） → 下に「ファイルと試料の対応」と試料ごとの比較表が出ます。"
           "ファイル名は業者から届いたままにしてください。",
-          "① Load the provider report (MultiPak .pptx or Curve Fit Summary) → ② add the raw `*_multi.csv` files "
-          "(optional; adds Python refits) → ③ sample metadata (optional) → the comparison tables appear below. Keep the "
-          "provider's file names unchanged.")
+          "① Load the provider report (MultiPak .pptx or Curve Fit Summary) → ② add the CSV files from the same folder "
+          "(optional; adds Python refits) → ③ sample metadata (optional) → the file-to-sample matching and the comparison "
+          "tables appear below. Keep the provider's file names unchanged.")
     st.caption(ui("業者のフィット（スピン軌道の対にして、各試料の知識ベースのモデルに仮対応）、サーベイの at.%、暫定の定量値を並べます。"
                   "ここで化学的な解釈を加えることはなく、すべての値に出どころを付けています。",
                   "Side-by-side view of provider fits (paired, tentatively mapped to each sample's KB model), survey at.% and "
@@ -1018,8 +1019,12 @@ with tab_x:
         rep_file = st.file_uploader(ui("① 業者の報告書（.pptx / Curve Fit Summary）", "① Provider report (MultiPak .pptx or Curve Fit Summary text)"),
                                     type=["pptx", "txt", "csv"], key="xs_rep", disabled=use_demo_x)
     with c2:
-        raw_files = st.file_uploader(ui("② 生データ *_multi.csv（任意・複数可）", "② Raw multi-region files *_multi.csv (optional, several)"),
-                                     type=["csv", "txt"], accept_multiple_files=True, key="xs_raw", disabled=use_demo_x)
+        raw_files = st.file_uploader(ui("② 生データの CSV（任意・まとめて選べます）", "② Raw-data CSV files (optional; select them all at once)"),
+                                     type=["csv", "txt"], accept_multiple_files=True, key="xs_raw", disabled=use_demo_x,
+                                     help=ui("業者から届いたフォルダの CSV をまとめて選んでください。*_multi.csv は再フィットに、"
+                                             "*curve.csv は複数領域ファイルがない内殻の再フィットに使い、*_su.csv（サーベイ）はフィットしません。",
+                                             "Select all CSV files from the provider's folder. *_multi.csv files are refitted, *curve.csv "
+                                             "files are used for core levels without a multi-region file, and *_su.csv (survey) is not fitted."))
     with c3:
         meta_file = st.file_uploader(ui("③ 試料メタデータ（任意、.csv）", "③ Sample metadata (optional, .csv)"), type=["csv"], key="xs_meta",
                                      disabled=use_demo_x)
@@ -1041,13 +1046,9 @@ with tab_x:
             meta_df = smeta.read(meta_file.getvalue()) if meta_file is not None else None
             bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), rep_file.name)
             files = list(dict.fromkeys(bands_x["data_file"]))
-            raw_by_stem = {}
-            for f in raw_files or []:
-                stem = f.name.split("_", 1)[0]
-                try:
-                    raw_by_stem[stem] = MULTIREGION_IMPORTERS[list(MULTIREGION_IMPORTERS)[0]](f.getvalue())
-                except Exception as e:
-                    say("INVALID", f"{f.name}: {e}")
+            matched = match_uploads(raw_files, files)
+            raw_by_stem = matched.raw_regions
+            st.session_state["xs_match"] = matched.rows
             samples_x = []
             for f in files:
                 stem = str(f).rsplit(".", 1)[0]
@@ -1063,6 +1064,41 @@ with tab_x:
             samples_x = []
     else:
         samples_x = st.session_state.get("xs_samples") or []
+    _rows = st.session_state.get("xs_match") if samples_x else None
+    if _rows:
+        _kind = {"multi": ui("複数領域（再フィットに使用）", "multi-region (refit)"),
+                 "curve": ui("業者のフィット範囲", "provider curve window"),
+                 "survey": ui("サーベイ", "survey"), "other": ui("その他", "other")}
+        _status = {"used": ui("✅ 使用", "✅ used"),
+                   "superseded": ui("— 同じ内殻の複数領域ファイルを優先", "— multi-region file used instead"),
+                   "survey": ui("— フィットしない", "— not fitted"),
+                   "no_sample": ui("⚠ 報告書に対応する試料がない", "⚠ no matching sample in the report"),
+                   "unknown_region": ui("⚠ 領域名を読めない", "⚠ region not recognised"),
+                   "no_core_level": ui("⚠ 内殻の領域がない", "⚠ no core-level region"),
+                   "failed": ui("⛔ 読めない", "⛔ import failed")}
+        _labels = {str(s.data_file).rsplit(".", 1)[0]: s.sample for s in samples_x}
+        _n_used = sum(r["status"] == "used" for r in _rows)
+        _n_bad = sum(r["status"] not in ("used", "superseded", "survey") for r in _rows)
+        _n_smp = len({r["stem"] for r in _rows if r["status"] == "used"})
+        (st.warning if _n_bad else st.success)(ui(
+            "CSV {n} ファイルのうち {u} ファイルを {k} 試料の再フィットに使いました。対応できなかったファイル：{b}。詳しくは下の表を開いてください。",
+            "{u} of {n} CSV files are used for the refits of {k} sample(s); files not matched or not read: {b}. Open the table below for details.",
+            n=len(_rows), u=_n_used, k=_n_smp, b=_n_bad))
+        with st.expander(ui("読み込んだファイルと試料の対応（{n} ファイル）", "Uploaded files and the samples they were matched to ({n} files)",
+                            n=len(_rows)), expanded=any(r["status"] not in ("used", "superseded", "survey") for r in _rows)):
+            st.caption(ui("報告書のデータファイル名（例：okawa121.spe → okawa121_…）で照合します。同じ内殻に複数領域ファイルと curve ファイルの"
+                          "両方があるときは、複数領域ファイルで再フィットします。",
+                          "Files are matched by the provider data-file name (e.g. okawa121.spe → okawa121_…). When both a multi-region "
+                          "file and a curve file supply a core level, the multi-region file is refitted."))
+            st.dataframe(pd.DataFrame([{ui("ファイル", "file"): r["file"], ui("種類", "kind"): _kind[r["kind"]],
+                                        ui("試料", "sample"): _labels.get(r["stem"], "—"), ui("内殻", "core levels"): r["regions"],
+                                        ui("状態", "status"): _status[r["status"]] + (f"（{r['detail']}）" if r["detail"] else "")}
+                                       for r in _rows]), hide_index=True)
+        if not any(r["kind"] == "multi" and r["status"] == "used" for r in _rows):
+            say("CAUTION", ui("複数領域ファイル（*_multi.csv）がありません。curve ファイルは業者のフィット範囲だけを含むため、"
+                              "その範囲で再フィットしています。",
+                              "No multi-region file (*_multi.csv). Curve files cover only the provider's fit window, so the "
+                              "refit uses that window."))
     if samples_x:
         info = pd.DataFrame([{"sample": s.sample, "data_file": s.data_file, "phase": s.meta.get("phase"),
                               "composition": s.meta.get("nominal_composition"), "treatment": s.meta.get("treatment"),

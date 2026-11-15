@@ -73,28 +73,28 @@ The screen is in **Japanese by default**; switch with **🌐 Language / 言語**
 with `?lang=en`. Only the screen changes: scientific messages from `src/mxene_xps` (fit diagnostics, quantification
 warnings, knowledge-base notes), the provider request text and all exported files stay in English. A collapsible
 **How to use** table at the top maps each goal to a tab, and every tab opens with a short numbered procedure.
-Tabs are ordered as the work usually proceeds (labels as shown in English):
+Tabs are ordered for analysis first; the provider request comes last (labels as shown in English):
 
-1. **Request** — region list and a fitting request with every candidate component (start BE, window, FWHM,
-   ΔSO and its basis, role, source, literature/transferred references, calibration status).
-2. **Import & compare** — provider report + optional raw multi-region files + optional metadata → BE and area
+1. **Import & compare** — provider report + optional raw multi-region files + optional metadata → BE and area
    fraction by component, O 1s / F 1s fractions, survey at.% (Al residual, Cl, S, Li where measured), provisional
    quantities and unresolved components; group by phase, composition or treatment. *Try with synthetic demo data*
-   loads `examples/synthetic_demo`.
-3. **Fit check** (provider ↔ Python validation) — independent pseudo-Voigt refit (Shirley/linear background),
+   loads `examples/synthetic_demo`. CSV files from the provider's folder can be selected all at once: each is matched to the sample whose provider data file it starts with (`<stem>_…`); `*multi.csv` files are refitted, `*curve.csv` files (provider curve-fit window) are used only for core levels without a multi-region file, and `*_su.csv` surveys are not fitted (`upload_match.py`, same rules as `tools/validation/holdout_first_pass.py`). A table shows which file went to which sample.
+2. **Fit check** (provider ↔ Python validation) — independent pseudo-Voigt refit (Shirley/linear background),
    provider-vs-Python component and role-grouped QC, the **identifiability table** (BE/FWHM/area with standard errors,
    bound proximity, strongest correlations, anticorrelation partner, stability across alternatives, status), and
    **fit-sensitivity comparison** over predefined alternatives (background, model-window crop, D4 ΔSO grid for Nb 3d
    only). ΔAIC/ΔBIC are shown only where the data points are identical; area-fraction or δ spans ≥ 0.05 are labelled
    **model-sensitive**. The app never chooses the "best chemistry" by AIC/BIC. Fit settings, QC thresholds and the
    editable starting model are in collapsed sections.
-4. **Quantification** — carbide-C normalization, M_norm, apparent δ, per-metal fractions, termination
+3. **Quantification** — carbide-C normalization, M_norm, apparent δ, per-metal fractions, termination
    quantities, and the **provisional table**: nominal (calibration candidate excluded from the framework) vs
    alternative (candidate counted as framework), shown side by side and **never averaged**, with the reason each
    value is provisional.
-5. **Report** — project JSON, HTML report, and the **calibration summary** (JSON/HTML).
-6. **Knowledge base** — every component with its role, caveat, literature / transferred references, provider
+4. **Report** — project JSON, HTML report, and the **calibration summary** (JSON/HTML).
+5. **Knowledge base** — every component with its role, caveat, literature / transferred references, provider
    observations (display only), calibration status and DOI.
+6. **Request** — region list and a fitting request with every candidate component (start BE, window, FWHM,
+   ΔSO and its basis, role, source, literature/transferred references, calibration status).
 
 Tab numbers in `docs/` refer to the earlier order (2 = quantification, 3 = validation, 4 = knowledge base,
 5 = report, 6 = cross-sample comparison).

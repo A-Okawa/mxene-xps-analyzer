@@ -18,7 +18,7 @@ def _app(lang="en"):
 def test_app_renders_all_tabs():
     at = _app()
     assert len(at.tabs) == 6
-    req = at.text_area[0].value
+    req = next(t for t in at.text_area if t.label == "Request text").value
     assert "Ti 2p: 4 candidate doublet(s)" in req and "do NOT force a vacancy-specific" in req
 
 
@@ -81,21 +81,21 @@ def test_japanese_is_the_default_language():
     at = st_testing.AppTest.from_file(APP, default_timeout=120).run()
     assert not at.exception
     assert at.session_state["lang"] == "ja"
-    assert [t.label for t in at.tabs] == ["1. 測定依頼", "2. 一括読込・試料比較", "3. フィット検証", "4. 定量",
-                                          "5. レポート", "6. 知識ベース"]
+    assert [t.label for t in at.tabs] == ["1. 一括読込・試料比較", "2. フィット検証", "3. 定量", "4. レポート",
+                                          "5. 知識ベース", "6. 測定依頼"]
     assert at.sidebar.header[0].value == "① 試料の設定"
 
 
 def test_english_tabs():
-    assert [t.label for t in _app().tabs] == ["1. Request", "2. Import & compare", "3. Fit check", "4. Quantification",
-                                              "5. Report", "6. Knowledge base"]
+    assert [t.label for t in _app().tabs] == ["1. Import & compare", "2. Fit check", "3. Quantification", "4. Report",
+                                              "5. Knowledge base", "6. Request"]
 
 
 def test_query_parameter_selects_english():
     at = st_testing.AppTest.from_file(APP, default_timeout=120)
     at.query_params["lang"] = "en"
     at.run()
-    assert at.session_state["lang"] == "en" and at.tabs[0].label == "1. Request"
+    assert at.session_state["lang"] == "en" and at.tabs[0].label == "1. Import & compare"
 
 
 def test_switching_language_keeps_inputs():
@@ -106,7 +106,7 @@ def test_switching_language_keeps_inputs():
     assert not at.exception
     assert at.text_input(key="sb_name_(Nb,Ti)2CTx").value == "S-42"
     assert at.checkbox(key="v_demo").value is True
-    assert at.tabs[0].label == "1. Request"
+    assert at.tabs[0].label == "1. Import & compare"
 
 
 def test_japanese_demo_fit_and_messages():
