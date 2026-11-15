@@ -16,8 +16,8 @@ disorder, oxidation, dopants and secondary phases are kept as separate variables
 
 | Level | Meaning | Where shown |
 |---|---|---|
-| **1. Fit succeeded** | The optimizer converged; residuals, R², AIC/BIC are reported. Says nothing about uniqueness or chemistry. | tab 3 metrics; `fit_succeeded` in reports |
-| **2. Statistically identifiable** | Within this model, the component's parameters are determined by the data (status: identifiable / weakly identifiable / boundary-limited / non-identifiable). Still not a chemical assignment. | tab 3 identifiability table; reports |
+| **1. Fit succeeded** | The optimizer converged; residuals, R², AIC/BIC are reported. Says nothing about uniqueness or chemistry. | Fit check tab metrics; `fit_succeeded` in reports |
+| **2. Statistically identifiable** | Within this model, the component's parameters are determined by the data (status: identifiable / weakly identifiable / boundary-limited / non-identifiable). Still not a chemical assignment. | Fit check tab identifiability table; reports |
 | **3. Chemically validated** | The assignment is confirmed by orthogonal evidence (e.g. XRD, XAS, EELS, reference spectra). **The app never claims this**; reports always state `chemical interpretation validated = False`. | reports |
 
 A converged fit can contain non-identifiable components, and an identifiable component can still be chemically
@@ -61,32 +61,43 @@ repository (`.gitignore` blocks data formats; only synthetic fixtures, templates
 | Input | Format | Notes |
 |---|---|---|
 | Single-region spectrum | two columns (BE, intensity); any delimiter, header optional, any order | refused if it contains several labelled blocks with BE jumps; refused (INVALID) for a single-region fit if the BE span is > 60 eV, warned > 40 eV |
-| **PHI multi-region CSV** (`*_multi.csv`, `*_su.csv`) | MultiPak ASCII export: `Full` / blank / `<region>` / `1` / data, repeated | split into one spectrum per region; pick the region in tab 3; surveys are flagged "not for peak fitting" |
+| **PHI multi-region CSV** (`*_multi.csv`, `*_su.csv`) | MultiPak ASCII export: `Full` / blank / `<region>` / `1` / data, repeated | split into one spectrum per region; pick the region in the Fit check tab; surveys are flagged "not for peak fitting" |
 | **MultiPak provider fit** | `.pptx` report or plain-text "Curve Fit Summary" (+ optional "Atomic Concentration Table") | raw bands kept as reported; spin-orbit lines paired by region, splitting, area ratio and proximity; lone lines flagged (totals estimated); tentative, editable mapping to KB components (edits logged) |
 | Generic provider table | CSV `component, BE, FWHM, area[, role, core_level]` | doublet area convention selectable |
 | Peak table for quantification | CSV `sample, core_level, component, area, role` (+ element, BE, FWHM, notes) | raw area (RSF required), corrected area, or atomic % |
 | **Sample metadata** | CSV, template in `templates/sample_metadata_template.csv` (example for the next five samples: `templates/next_dataset_example.csv`) | sample ID, composition, MAX/MXene, synthesis, etchant, treatment, temperature, date, BE reference, notes, sputtering, comments; dataset-level only, never part of the KB |
 
-## Workflow (tabs)
+## Screen language and workflow (tabs)
 
-1. **Request generator** — region list and a fitting request with every candidate component (start BE, window, FWHM,
+The screen is in **Japanese by default**; switch with **🌐 Language / 言語** at the top of the sidebar, or open the app
+with `?lang=en`. Only the screen changes: scientific messages from `src/mxene_xps` (fit diagnostics, quantification
+warnings, knowledge-base notes), the provider request text and all exported files stay in English. A collapsible
+**How to use** table at the top maps each goal to a tab, and every tab opens with a short numbered procedure.
+Tabs are ordered as the work usually proceeds (labels as shown in English):
+
+1. **Request** — region list and a fitting request with every candidate component (start BE, window, FWHM,
    ΔSO and its basis, role, source, literature/transferred references, calibration status).
-2. **Peak table & quantification** — carbide-C normalization, M_norm, apparent δ, per-metal fractions, termination
+2. **Import & compare** — provider report + optional raw multi-region files + optional metadata → BE and area
+   fraction by component, O 1s / F 1s fractions, survey at.% (Al residual, Cl, S, Li where measured), provisional
+   quantities and unresolved components; group by phase, composition or treatment. *Try with synthetic demo data*
+   loads `examples/synthetic_demo`.
+3. **Fit check** (provider ↔ Python validation) — independent pseudo-Voigt refit (Shirley/linear background),
+   provider-vs-Python component and role-grouped QC, the **identifiability table** (BE/FWHM/area with standard errors,
+   bound proximity, strongest correlations, anticorrelation partner, stability across alternatives, status), and
+   **fit-sensitivity comparison** over predefined alternatives (background, model-window crop, D4 ΔSO grid for Nb 3d
+   only). ΔAIC/ΔBIC are shown only where the data points are identical; area-fraction or δ spans ≥ 0.05 are labelled
+   **model-sensitive**. The app never chooses the "best chemistry" by AIC/BIC. Fit settings, QC thresholds and the
+   editable starting model are in collapsed sections.
+4. **Quantification** — carbide-C normalization, M_norm, apparent δ, per-metal fractions, termination
    quantities, and the **provisional table**: nominal (calibration candidate excluded from the framework) vs
    alternative (candidate counted as framework), shown side by side and **never averaged**, with the reason each
    value is provisional.
-3. **Provider ↔ Python validation** — independent pseudo-Voigt refit (Shirley/linear background), provider-vs-Python
-   component and role-grouped QC, the **identifiability table** (BE/FWHM/area with standard errors, bound proximity,
-   strongest correlations, anticorrelation partner, stability across alternatives, status), and **fit-sensitivity
-   comparison** over predefined alternatives (background, model-window crop, D4 ΔSO grid for Nb 3d only). ΔAIC/ΔBIC are
-   shown only where the data points are identical; area-fraction or δ spans ≥ 0.05 are labelled **model-sensitive**.
-   The app never chooses the "best chemistry" by AIC/BIC.
-4. **Knowledge base** — every component with its role, caveat, literature / transferred references, provider
+5. **Report** — project JSON, HTML report, and the **calibration summary** (JSON/HTML).
+6. **Knowledge base** — every component with its role, caveat, literature / transferred references, provider
    observations (display only), calibration status and DOI.
-5. **Report & export** — project JSON, HTML report, and the **calibration summary** (JSON/HTML).
-6. **Cross-sample comparison** — provider report + optional raw multi-region files + optional metadata → BE and area
-   fraction by component, O 1s / F 1s fractions, survey at.% (Al residual, Cl, S, Li where measured), provisional
-   quantities and unresolved components; group by phase, composition or treatment.
+
+Tab numbers in `docs/` refer to the earlier order (2 = quantification, 3 = validation, 4 = knowledge base,
+5 = report, 6 = cross-sample comparison).
 
 ## Provenance
 

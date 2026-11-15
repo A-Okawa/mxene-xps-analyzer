@@ -205,13 +205,14 @@ def test_fit_refuses_unrelated_core_level(kb):
 
 def test_app_unsupported_region_and_new_tab():
     st_testing = pytest.importorskip("streamlit.testing.v1")
-    at = st_testing.AppTest.from_file(str(ROOT / "app.py"), default_timeout=120).run()
+    at = st_testing.AppTest.from_file(str(ROOT / "app.py"), default_timeout=120)
+    at.session_state["lang"] = "en"
+    at.run()
     assert not at.exception and len(at.tabs) == 6
-    sb = next(s for s in at.selectbox if s.label == "Core level")
-    sb.select("Cl 2p").run()
+    at.selectbox(key="v_core").select("Cl 2p").run()
     assert not at.exception
     assert any(NO_MODEL_TEXT in w.value and "CAUTION" in w.value for w in at.warning)   # not an error: nothing is wrong
-    assert next(b for b in at.button if b.label == "Run Python fit").disabled
+    assert at.button(key="btn_fit").disabled
 
 
 def test_request_s2p_for_h2so4(kb):
