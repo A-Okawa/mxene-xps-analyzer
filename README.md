@@ -79,7 +79,7 @@ Tabs are ordered for analysis first; the provider request comes last (labels as 
    fraction by component, O 1s / F 1s fractions, survey at.% (Al residual, Cl, S, Li where measured), provisional
    quantities and unresolved components; group by phase, composition or treatment. *Try with synthetic demo data*
    loads `examples/synthetic_demo`. CSV files from the provider's folder can be selected all at once: each is matched to the sample whose provider data file it starts with (`<stem>_…`); `*multi.csv` files are refitted, `*curve.csv` files (provider curve-fit window) are used only for core levels without a multi-region file, and `*_su.csv` surveys are not fitted (`upload_match.py`, same rules as `tools/validation/holdout_first_pass.py`). A table shows which file went to which sample.
-2. **Fit check** (provider ↔ Python validation) — independent pseudo-Voigt refit (Shirley/linear background),
+2. **Fit check** (provider ↔ Python validation) — by default uses the data loaded in tab 1: choose the sample and the core level; the fit model follows the sample's structure and the provider fit is taken from the report (files can still be loaded here instead). Independent pseudo-Voigt refit (Shirley/linear background),
    provider-vs-Python component and role-grouped QC, the **identifiability table** (BE/FWHM/area with standard errors,
    bound proximity, strongest correlations, anticorrelation partner, stability across alternatives, status), and
    **fit-sensitivity comparison** over predefined alternatives (background, model-window crop, D4 ΔSO grid for Nb 3d

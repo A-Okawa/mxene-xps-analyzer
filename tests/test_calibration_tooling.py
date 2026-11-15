@@ -209,6 +209,7 @@ def test_app_unsupported_region_and_new_tab():
     at.session_state["lang"] = "en"
     at.run()
     assert not at.exception and len(at.tabs) == 6
+    at.radio(key="v_src").set_value("upload").run()
     at.selectbox(key="v_core").select("Cl 2p").run()
     assert not at.exception
     assert any(NO_MODEL_TEXT in w.value and "CAUTION" in w.value for w in at.warning)   # not an error: nothing is wrong

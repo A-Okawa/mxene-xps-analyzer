@@ -38,6 +38,7 @@ def test_structures_render(structure):
 
 def test_demo_fit_runs():
     at = _app()
+    at.radio(key="v_src").set_value("upload").run()
     at.checkbox(key="v_demo").check().run()
     at.button(key="btn_fit").click().run()
     assert not at.exception
@@ -48,6 +49,7 @@ def test_demo_fit_runs():
 def test_switching_profile_after_fit_does_not_crash():
     """Regression: a Ti 2p fit from the (Nb,Ti) profile must not be re-plotted with the Ti3C2Tx model."""
     at = _app()
+    at.radio(key="v_src").set_value("upload").run()
     at.checkbox(key="v_demo").check().run()
     at.button(key="btn_fit").click().run()
     assert not at.exception
@@ -101,6 +103,7 @@ def test_query_parameter_selects_english():
 def test_switching_language_keeps_inputs():
     at = _app("ja")
     at.text_input(key="sb_name_(Nb,Ti)2CTx").set_value("S-42").run()
+    at.radio(key="v_src").set_value("upload").run()
     at.checkbox(key="v_demo").check().run()
     at.radio(key="lang").set_value("en").run()
     assert not at.exception
@@ -111,6 +114,7 @@ def test_switching_language_keeps_inputs():
 
 def test_japanese_demo_fit_and_messages():
     at = _app("ja")
+    at.radio(key="v_src").set_value("upload").run()
     at.checkbox(key="v_demo").check().run()
     at.button(key="btn_fit").click().run()
     assert not at.exception and not at.error
@@ -144,3 +148,29 @@ def test_hf_hcl_requests_f1s_and_cl2p():
     regions = set(at.dataframe[0].value["region"]) if False else None
     req = next(t for t in at.text_area if t.label == "Request text").value
     assert "HF/HCl" in req and "F 1s" in req and "Cl 2p" in req
+
+
+def test_fit_check_uses_the_data_loaded_in_tab_1():
+    """Tab 1 practice data -> tab 2 'use tab-1 data': pick sample and core, fit, compare with the report automatically."""
+    at = _app("ja")
+    at.radio(key="xs_src").set_value("demo").run()
+    assert at.radio(key="v_src").value == "tab1"
+    smp = at.selectbox(key="v_smp")
+    i = next(k for k, lbl in enumerate(smp.options) if "(Nb0.6Ti0.4)2CTx" in lbl)
+    smp.set_value(i).run()
+    core = at.selectbox(key="v_core_SYNdemo203")
+    assert core.value == "Ti 2p" and "Nb 3d" in core.options
+    core.set_value("Nb 3d").run()
+    at.button(key="btn_fit").click().run()
+    assert not at.exception and not at.error, [e.value for e in at.error]
+    assert any(m.label == "収束" for m in at.metric)
+    fits = at.session_state["fits"]
+    key = next(k for k in fits if k.startswith("3_(Nb0.6Ti0.4)2CTx | nbti_m2c_defect_aware | Nb 3d"))
+    assert "grouped_qc" in fits[key]           # provider report from tab 1 was compared automatically
+    assert at.session_state["lang"] == "ja"
+
+
+def test_fit_check_tab1_without_data_explains_what_to_do():
+    at = _app("ja")
+    assert any("タブ 1" in i.value for i in at.info)
+    assert not at.exception

@@ -483,74 +483,342 @@ with tab_q:
             for line in ev_lines:
                 st.write("• " + line)
 
+# ------------------------------------------------------------------ 6 cross-sample
+class _DemoFile:
+    """A file (examples/synthetic_demo, or bytes kept from tab 1) shaped like an uploaded file (name + getvalue)."""
+
+    def __init__(self, path: Path | None = None):
+        if path is not None:
+            self.name, self._data = path.name, path.read_bytes()
+
+    @classmethod
+    def from_bytes(cls, name: str, data: bytes) -> "_DemoFile":
+        f = cls()
+        f.name, f._data = name, data
+        return f
+
+    def getvalue(self) -> bytes:
+        return self._data
+
+
+with tab_x:
+    steps("業者から届いたフォルダを選ぶだけです（報告書 .pptx と CSV を自動で振り分けます）。下に「ファイルと試料の対応」と試料ごとの比較表が出ます。"
+          "ファイル名は業者から届いたままにしてください。",
+          "Just select the folder from the provider (the .pptx report and the CSV files are sorted automatically). The "
+          "file-to-sample matching and the comparison tables appear below. Keep the provider's file names unchanged.")
+    st.caption(ui("業者のフィット（スピン軌道の対にして、各試料の知識ベースのモデルに仮対応）、サーベイの at.%、暫定の定量値を並べます。"
+                  "ここで化学的な解釈を加えることはなく、すべての値に出どころを付けています。",
+                  "Side-by-side view of provider fits (paired, tentatively mapped to each sample's KB model), survey at.% and "
+                  "provisional quantities. Nothing here changes or adds a chemical interpretation; every value carries its "
+                  "provenance."))
+    _src = {"folder": ui("📁 フォルダごと選ぶ", "📁 Select the whole folder"),
+            "files": ui("📄 ファイルを個別に選ぶ", "📄 Select files one by one"),
+            "demo": ui("🧪 練習用データ（計算で作った架空のスペクトル 3 試料）", "🧪 Practice data (three fictitious, computer-generated samples)")}
+    src_mode = st.radio(ui("読み込み方", "How to load"), list(_src), format_func=_src.get, horizontal=True, key="xs_src")
+    rep_file = meta_file = None
+    raw_files = []
+    if src_mode == "folder":
+        folder = st.file_uploader(
+            ui("業者から届いたフォルダを選ぶ（報告書 .pptx と CSV が入ったフォルダ）", "Select the provider's folder (with the .pptx report and the CSV files)"),
+            type=["pptx", "csv", "txt"], accept_multiple_files="directory", key="xs_folder",
+            help=ui("報告書（.pptx か Curve Fit Summary）、生データ CSV、試料メタデータ CSV（あれば）を自動で振り分けます。",
+                    "The report (.pptx or Curve Fit Summary), raw-data CSVs and a sample-metadata CSV (if any) are sorted automatically."))
+        if folder:
+            reports, meta_file, raw_files = split_folder(folder)
+            if not reports:
+                say("INVALID", ui("フォルダに業者の報告書（.pptx か Curve Fit Summary のテキスト）が見つかりません。",
+                                  "No provider report (.pptx or Curve Fit Summary text) found in the folder."))
+            elif len(reports) == 1:
+                rep_file = reports[0]
+            else:
+                _ri = st.selectbox(ui("報告書が {n} 個あります。使う報告書", "{n} reports found; report to use", n=len(reports)),
+                                   list(range(len(reports))), format_func=lambda i: base_name(reports[i].name), key="xs_rep_pick")
+                rep_file = reports[_ri]
+            if rep_file is not None:
+                st.caption(ui("報告書：{r}　／　CSV：{n} ファイル　／　メタデータ：{m}",
+                              "Report: {r}  /  CSV: {n} files  /  metadata: {m}", r=base_name(rep_file.name), n=len(raw_files),
+                              m=base_name(meta_file.name) if meta_file else ui("なし", "none")))
+    elif src_mode == "files":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            rep_file = st.file_uploader(ui("① 業者の報告書（.pptx / Curve Fit Summary）", "① Provider report (MultiPak .pptx or Curve Fit Summary text)"),
+                                        type=["pptx", "txt", "csv"], key="xs_rep")
+        with c2:
+            raw_files = st.file_uploader(ui("② 生データの CSV（任意・まとめて選べます）", "② Raw-data CSV files (optional; select them all at once)"),
+                                         type=["csv", "txt"], accept_multiple_files=True, key="xs_raw",
+                                         help=ui("*_multi.csv は再フィットに、*curve.csv は複数領域ファイルがない内殻の再フィットに使い、"
+                                                 "*_su.csv（サーベイ）はフィットしません。",
+                                                 "*_multi.csv files are refitted, *curve.csv files are used for core levels without a "
+                                                 "multi-region file, and *_su.csv (survey) is not fitted.")) or []
+        with c3:
+            meta_file = st.file_uploader(ui("③ 試料メタデータ（任意、.csv）", "③ Sample metadata (optional, .csv)"), type=["csv"], key="xs_meta")
+    else:
+        rep_file = _DemoFile(DEMO / "SYNTHETIC_provider_report.txt")
+        raw_files = [_DemoFile(f) for f in sorted(DEMO.glob("SYNdemo*_SYNTHETIC_multi.csv"))]
+        meta_file = _DemoFile(DEMO / "SYNTHETIC_sample_metadata.csv")
+        say("INFO", ui("練習用データを使っています（examples/synthetic_demo。実データではありません）。",
+                       "Using the practice data (examples/synthetic_demo; not real data)."))
+    with st.expander(ui("試料メタデータ（任意）のテンプレート", "Sample-metadata template (optional)")):
+        st.caption(ui("組成・相・処理条件などを試料ごとに書いておくと、比較表でまとめたり並べたりできます。無ければ業者のコメント（例：Ti3C2Tx）から推定します。",
+                      "Composition, phase and treatment per sample let the tables group samples. Without it they are inferred "
+                      "from the provider comment (e.g. Ti3C2Tx)."))
+        m1, m2 = st.columns(2)
+        m1.download_button(ui("メタデータのテンプレート（.csv）", "Metadata template (.csv)"), csv_bytes(smeta.template()),
+                           file_name="sample_metadata_template.csv")
+        ex = ROOT / "templates" / "next_dataset_example.csv"
+        if ex.exists():
+            m2.download_button(ui("記入例：次の 5 試料（.csv）", "Example: next five-sample dataset (.csv)"), ex.read_bytes(),
+                               file_name="next_dataset_example.csv")
+    st.session_state["xs_name"] = st.text_input(ui("データセット名", "Dataset name"), value=st.session_state.get("xs_name", "dataset"),
+                                                key="xs_name_in")
+    if rep_file is not None:
+        try:
+            meta_df = smeta.read(meta_file.getvalue()) if meta_file is not None else None
+            bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), base_name(rep_file.name))
+            files = list(dict.fromkeys(bands_x["data_file"]))
+            _multi = (bands_x.drop_duplicates("summary_index").groupby(["data_file", "core_level"]).size())
+            st.session_state["xs_multi_fit"] = [(str(f).rsplit(".", 1)[0], c, int(n)) for (f, c), n in _multi.items() if n > 1]
+            matched = match_uploads(raw_files, files)
+            raw_by_stem = matched.raw_regions
+            st.session_state["xs_match"] = matched.rows
+            st.session_state["xs_raw_regions"] = raw_by_stem
+            st.session_state["xs_report"] = (base_name(rep_file.name), rep_file.getvalue())
+            samples_x = []
+            for f in files:
+                stem = str(f).rsplit(".", 1)[0]
+                meta_row = None
+                if meta_df is not None:
+                    hit = meta_df[(meta_df["provider_file"] == stem) | (meta_df["sample_id"] == str(
+                        bands_x.loc[bands_x["data_file"] == f, "comment"].iloc[0]))]
+                    meta_row = hit.iloc[0].to_dict() if len(hit) else None
+                samples_x.append(ds.build_sample(f, bands_x, act_x, KB, meta=meta_row, raw_regions=raw_by_stem.get(stem)))
+            st.session_state["xs_samples"] = samples_x
+        except Exception as e:
+            say("INVALID", ui("試料を組み立てられませんでした：{e}", "Dataset assembly failed: {e}", e=e))
+            samples_x = []
+    else:
+        samples_x = st.session_state.get("xs_samples") or []
+    for _stem, _core, _n in (st.session_state.get("xs_multi_fit") or [] if samples_x else []):
+        say("INFO", ui("{s} の {c}：報告書に業者のフィットが {n} 通りあります。比較表には最後のものだけが入ります。"
+                       "ほかのフィットとの照合はタブ 2（フィット検証）で選べます。",
+                       "{s} {c}: the report has {n} provider fits; the comparison tables show the last one. "
+                       "Pick the others in tab 2 (Fit check).", s=_stem, c=_core, n=_n))
+    _rows = st.session_state.get("xs_match") if samples_x else None
+    if _rows:
+        _kind = {"multi": ui("複数領域（再フィットに使用）", "multi-region (refit)"),
+                 "curve": ui("業者のフィット範囲", "provider curve window"),
+                 "survey": ui("サーベイ", "survey"), "other": ui("その他", "other")}
+        _status = {"used": ui("✅ 使用", "✅ used"),
+                   "superseded": ui("— 同じ内殻の複数領域ファイルを優先", "— multi-region file used instead"),
+                   "survey": ui("— フィットしない", "— not fitted"),
+                   "no_sample": ui("⚠ 報告書に対応する試料がない", "⚠ no matching sample in the report"),
+                   "unknown_region": ui("⚠ 領域名を読めない", "⚠ region not recognised"),
+                   "no_core_level": ui("⚠ 内殻の領域がない", "⚠ no core-level region"),
+                   "failed": ui("⛔ 読めない", "⛔ import failed")}
+        _labels = {str(s.data_file).rsplit(".", 1)[0]: s.sample for s in samples_x}
+        _n_used = sum(r["status"] == "used" for r in _rows)
+        _n_bad = sum(r["status"] not in ("used", "superseded", "survey") for r in _rows)
+        _n_smp = len({r["stem"] for r in _rows if r["status"] == "used"})
+        (st.warning if _n_bad else st.success)(ui(
+            "CSV {n} ファイルのうち {u} ファイルを {k} 試料の再フィットに使いました。対応できなかったファイル：{b}。詳しくは下の表を開いてください。",
+            "{u} of {n} CSV files are used for the refits of {k} sample(s); files not matched or not read: {b}. Open the table below for details.",
+            n=len(_rows), u=_n_used, k=_n_smp, b=_n_bad))
+        with st.expander(ui("読み込んだファイルと試料の対応（{n} ファイル）", "Uploaded files and the samples they were matched to ({n} files)",
+                            n=len(_rows)), expanded=any(r["status"] not in ("used", "superseded", "survey") for r in _rows)):
+            st.caption(ui("報告書のデータファイル名（例：okawa121.spe → okawa121_…）で照合します。同じ内殻に複数領域ファイルと curve ファイルの"
+                          "両方があるときは、複数領域ファイルで再フィットします。",
+                          "Files are matched by the provider data-file name (e.g. okawa121.spe → okawa121_…). When both a multi-region "
+                          "file and a curve file supply a core level, the multi-region file is refitted."))
+            st.dataframe(pd.DataFrame([{ui("ファイル", "file"): r["file"], ui("種類", "kind"): _kind[r["kind"]],
+                                        ui("試料", "sample"): _labels.get(r["stem"], "—"), ui("内殻", "core levels"): r["regions"],
+                                        ui("状態", "status"): _status[r["status"]] + (f"（{r['detail']}）" if r["detail"] else "")}
+                                       for r in _rows]), hide_index=True)
+        if not any(r["kind"] == "multi" and r["status"] == "used" for r in _rows):
+            say("CAUTION", ui("複数領域ファイル（*_multi.csv）がありません。curve ファイルは業者のフィット範囲だけを含むため、"
+                              "その範囲で再フィットしています。",
+                              "No multi-region file (*_multi.csv). Curve files cover only the provider's fit window, so the "
+                              "refit uses that window."))
+    if samples_x:
+        info = pd.DataFrame([{"sample": s.sample, "data_file": s.data_file, "phase": s.meta.get("phase"),
+                              "composition": s.meta.get("nominal_composition"), "treatment": s.meta.get("treatment"),
+                              "treatment_temperature_C": s.meta.get("treatment_temperature_C"), "structure": s.structure,
+                              "profile": s.profile, "notes": "; ".join(s.notes)} for s in samples_x])
+        st.dataframe(info, hide_index=True)
+        st.caption(ui("このタブでは、試料の構造を報告書のコメント（例：Ti3C2Tx）かメタデータから試料ごとに決めます。左の「試料の設定」は使いません。",
+                      "In this tab the structure of each sample comes from the provider comment (e.g. Ti3C2Tx) or the metadata; "
+                      "the sidebar sample setup is not used."))
+        g1, g2 = st.columns(2)
+        _gb = {"none": ui("まとめない", "none"), "phase": ui("相（MAX / MXene）", "phase"),
+               "composition": ui("組成", "composition"), "treatment": ui("処理", "treatment")}
+        group_by = g1.selectbox(ui("まとめ方", "Group by"), list(_gb), key="xs_group", format_func=_gb.get)
+        chosen = g2.multiselect(ui("表示する試料", "Samples"), list(info["sample"]), default=list(info["sample"]), key="xs_pick")
+        sel = [s for s in samples_x if s.sample in chosen]
+        long = ds.long_table(sel)
+
+        def _w(quantity, core=None):
+            w = ds.wide(long, quantity, core)
+            if w.empty or group_by == "none":
+                return w
+            gmap = long.drop_duplicates("sample").set_index("sample")[group_by].astype(str).to_dict()
+            w.columns = pd.MultiIndex.from_tuples([(gmap.get(c, ""), c) for c in w.columns], names=[group_by, "sample"])
+            return w.sort_index(axis=1)
+
+        st.markdown(ui("#### 暫定の定量値（基準値＝校正候補を骨格に数えない、代替値＝数える。平均はしない）",
+                       "#### Provisional quantities (nominal = candidate excluded; alternative = candidate as framework; never averaged)"))
+        qs = ds.quant_summary(sel)
+        st.dataframe(qs, hide_index=True)
+        cores_x = sorted({c for s in sel for c in s.mappings})
+        _metal_first = next((i for i, c in enumerate(cores_x) if c in ("Ti 2p", "Nb 3d")), 0)
+        core_pick = st.selectbox(ui("下の表で見るコア準位", "Core level for BE / area-fraction tables"), cores_x, index=_metal_first, key="xs_core")
+        if core_pick in UNSUPPORTED_REGIONS:
+            say("CAUTION", ui("{c}：検証済みモデルなし。業者のピークを読み込んだまま表示しています（対にできるものは対にしています）。",
+                              "{c}: {t}; provider peaks shown as imported (paired where applicable).", c=core_pick, t=NO_MODEL_TEXT))
+        st.markdown(ui("#### 成分ごとの結合エネルギー — {c}（業者のフィット）", "#### Fitted BE by component — {c} (provider; provenance provider_paired_doublet / provider_raw_fit)", c=core_pick))
+        st.dataframe(_w("BE (eV)", core_pick))
+        st.markdown(ui("#### 成分ごとの面積分率 — {c}", "#### Area fraction by component — {c}", c=core_pick))
+        st.dataframe(_w("area fraction", core_pick))
+        if any(s.python for s in sel):
+            st.markdown(ui("#### Python の再フィット — {c}（面積分率。同定可能性は縦長の表に）", "#### Python refit — {c} (area fraction; identifiability in the long table)", c=core_pick))
+            st.dataframe(_w("area fraction [python]", core_pick))
+        for oc in ("O 1s", "F 1s"):
+            if oc in cores_x and oc != core_pick:
+                st.markdown(ui("#### {o} の分率", "#### {o} fractions", o=oc))
+                st.dataframe(_w("area fraction", oc))
+        st.markdown(ui("#### サーベイの at.%（業者の原子濃度表。測っていれば残留 Al・Cl・S・Li も）",
+                       "#### Survey at.% (provider atomic concentration table) — incl. Al residual, Cl, S, Li where measured"))
+        st.dataframe(_w("at.%"))
+        unres = long[(long["quantity"] == "BE (eV)") & long["identifiability"].astype(str).ne("")]
+        if len(unres):
+            st.markdown(ui("#### 未解決・モデル外の業者成分（ラベルは中立。帰属はしない）",
+                           "#### Unresolved / unmodelled provider components (labels are neutral; no assignment)"))
+            st.dataframe(unres[["sample", "core_level", "component", "provider_label", "value", "identifiability"]]
+                         .rename(columns={"value": "BE (eV)"}), hide_index=True)
+        st.download_button(ui("比較表（縦長・出どころ付き、.csv）", "Comparison long table with provenance (.csv)"), csv_bytes(long.assign(app_version=__version__, kb_version=KB.version)),
+                           file_name=f"{st.session_state['xs_name']}_comparison_long.csv")
+        st.download_button(ui("暫定の定量値（.csv）", "Provisional quantities (.csv)"), csv_bytes(qs.assign(app_version=__version__, kb_version=KB.version)), file_name=f"{st.session_state['xs_name']}_provisional.csv")
+
 # ------------------------------------------------------------------ 3 validation
 with tab_v:
-    steps("① コア準位を選ぶ → ② 生データを入れる（`*_multi.csv` ならファイル内の領域も選ぶ） → ③ 業者のフィット結果を入れる（任意） "
-          "→ ④「Python でフィット」。業者の結果を入れると、成分ごとと役割ごとに一致度（PASS / REVIEW / FAIL）を判定します。"
-          "Python のフィットは独立した検算で、正解ではありません。",
-          "① Choose the core level → ② load the raw data (for `*_multi.csv`, also pick the region) → ③ load the provider "
-          "fit (optional) → ④ Run Python fit. With a provider fit, agreement is judged per component and per role "
-          "(PASS / REVIEW / FAIL). The Python fit is an independent check, not ground truth.")
-    cores = list(models) + [r for r in UNSUPPORTED_REGIONS if r not in models]
-    _core_lbl = {c: c if c in models else ui("{c}（検証済みモデルなし）", "{c} ({t})", c=c, t=NO_MODEL_TEXT) for c in cores}
-    core = st.selectbox(ui("① コア準位", "① Core level"), cores, key="v_core", format_func=_core_lbl.get)
-    kb_comps = models.get(core, [])
-    unsupported = not kb_comps
-    if unsupported:
-        say("CAUTION", ui("{c}：検証済みのモデルがありません。読み込み・表示・出力と業者ピークの取り込みはできますが、Python のフィットは行いません。",
-                          "{c}: {t}. The region can be imported, displayed and exported, and provider peaks can be "
-                          "imported, but no Python fit is run.", c=core, t=NO_MODEL_TEXT) + " " + UNSUPPORTED_REGIONS.get(core, ""))
-    for w in profile.get("core_level_warnings", {}).get(core, []):
-        say(w, "CAUTION")
-    importer_names = list(MULTIREGION_IMPORTERS) + list(SPECTRUM_IMPORTERS)
-    importer_label = {list(MULTIREGION_IMPORTERS)[0]: ui("PHI 複数領域・サーベイ（*_multi.csv, *_su.csv）", "PHI multi-region / survey (*_multi.csv, *_su.csv)"),
-                      list(SPECTRUM_IMPORTERS)[0]: ui("2 列（結合エネルギー, 強度）", "generic two-column (BE, intensity)")}
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(ui("**② 生データ**", "**② Raw spectrum**"))
-        importer = st.selectbox(ui("形式", "Format"), importer_names, key="v_importer", format_func=importer_label.get)
-        raw_file = st.file_uploader(ui("生データのファイル", "Raw spectrum file"), type=["csv", "txt", "dat"], key="raw",
-                                    help=ui("2 列の場合：見出しの有無・並び順・区切り文字は問いません。",
-                                            "Two-column files: header optional, any order, any delimiter."))
-        region_sp = None
-        if raw_file is not None and importer in MULTIREGION_IMPORTERS:
-            try:
-                regs = MULTIREGION_IMPORTERS[importer](raw_file.getvalue())
-                labels = [f"{r.region} → {r.core_level or ui('内殻ではない', 'not a core level')} ({r.be.min():.1f}–{r.be.max():.1f} eV, "
-                          f"{len(r.be)} pts)" for r in regs]
-                default = next((i for i, r in enumerate(regs) if r.core_level == core), 0)
-                pick = st.selectbox(ui("ファイル内の領域", "Region in file"), list(range(len(regs))), index=default,
-                                    format_func=lambda i: labels[i], key=f"region_{raw_file.name}_{core}")
-                region_sp = regs[pick]
-                if region_sp.core_level != core:
-                    say("INVALID", ui("選んだ領域 {r} は {c} ではないため、{c} のモデルではフィットしません。",
-                                      "Selected region {r} is not {c}; fitting it with the {c} model is refused.", r=region_sp.region, c=core))
-            except Exception as e:
-                say("INVALID", ui("複数領域ファイルを読めませんでした：{e}", "Multi-region import failed: {e}", e=e))
-        demo_tag = {"Ti 2p": "Ti2p", "Nb 3d": "Nb3d"}.get(core)
-        use_demo = st.checkbox(ui("練習用データで試す（計算で作った架空のスペクトル。Ti 2p・Nb 3d のみ、生データ未指定のとき）",
-                                  "Try with practice data (a computer-generated, fictitious synthetic demo spectrum; Ti 2p, Nb 3d; used when no raw file is loaded)"),
-                               value=False, disabled=demo_tag is None, key="v_demo")
-    with c2:
-        st.markdown(ui("**③ 業者のフィット結果（任意）**", "**③ Provider fit (optional)**"))
-        _pf = {"PHI MultiPak Curve Fit Summary": ui("PHI MultiPak（.pptx / Curve Fit Summary）", "PHI MultiPak (.pptx / Curve Fit Summary)"),
-               "Generic component CSV": ui("成分表 CSV", "Component CSV")}
-        prov_fmt = st.radio(ui("形式", "Format"), list(_pf), horizontal=True, key="v_prov_fmt", format_func=_pf.get)
-        if prov_fmt == "Generic component CSV":
-            vendor_file = st.file_uploader(ui("成分表 CSV（component, BE, FWHM, area[, role, core_level]）",
-                                              "Provider component CSV (component, BE, FWHM, area[, role, core_level])"), type=["csv"], key="vend")
-            _dc = {"total": ui("2 本の合計", "total (both spin-orbit lines)"), "primary": ui("主線 1 本のみ", "primary line only")}
-            doublet_conv = st.radio(ui("ダブレットの面積は…", "Provider doublet area is…"), list(_dc), horizontal=True, key="v_dconv",
-                                    format_func=_dc.get)
-        else:
-            vendor_file = st.file_uploader(ui("MultiPak の報告書（.pptx）または Curve Fit Summary（.txt / .csv）",
-                                              "MultiPak report (.pptx) or Curve Fit Summary text (.txt/.csv)"),
-                                           type=["pptx", "txt", "csv"], key="vend_mp")
-            doublet_conv = "total"
-            st.caption(ui("別々に報告されたスピン軌道の 2 本は、領域・分裂幅・面積比・近さで対にします。業者のラベルはそのまま残し、"
-                          "知識ベースへの対応付けは仮のもので、下の表で直せます。",
-                          "Spin-orbit lines reported as separate bands are paired by region, splitting, area ratio and "
-                          "proximity. Provider labels are kept; the KB mapping below is tentative and editable."))
+    steps("**いちばん簡単な使い方**：タブ 1 で業者のフォルダを読み込む → ここで ① 試料 → ② 内殻（Ti 2p など）を選ぶ → "
+          "「Python でフィット」。業者のフィットは報告書から自動で取り、Python のフィットと成分ごと・役割ごとに比べて "
+          "PASS / REVIEW / FAIL を出します。Python のフィットは独立した検算で、正解ではありません。",
+          "**Simplest way**: load the provider folder in tab 1 → here choose ① the sample → ② the core level (Ti 2p, ...) "
+          "→ Run Python fit. The provider fit is taken from the report automatically and compared with the Python fit "
+          "per component and per role (PASS / REVIEW / FAIL). The Python fit is an independent check, not ground truth.")
+    _sb_state = (profile_key, models, profile, sample_name)     # restored at the end of this tab
+    _xs = st.session_state.get("xs_samples") or []
+    _xs_regions = st.session_state.get("xs_raw_regions") or {}
+    _xs_report = st.session_state.get("xs_report")
+    _vs = {"tab1": ui("タブ 1 で読み込んだデータを使う", "Use the data loaded in tab 1"),
+           "upload": ui("ファイルをここで入れる（2 列 CSV なども可）", "Load files here (two-column CSV etc.)")}
+    v_src = st.radio(ui("データ", "Data"), list(_vs), format_func=_vs.get, horizontal=True, key="v_src")
+    v_stem = None
+    if v_src == "tab1":
+        if not _xs:
+            say("INFO", ui("まだタブ 1 でデータを読み込んでいません。タブ 1（一括読込・試料比較）でフォルダを選ぶか、"
+                           "上の「ファイルをここで入れる」に切り替えてください。",
+                           "No data loaded in tab 1 yet. Select the folder in tab 1 (Import & compare), or switch to "
+                           "'Load files here' above."))
+        _labels_v = [f"{x.sample}（{x.data_file} · {x.structure or ui('構造不明', 'structure unknown')}）" for x in _xs]
+        smp = st.selectbox(ui("① 試料", "① Sample"), list(range(len(_xs))), format_func=lambda i: _labels_v[i], key="v_smp") if _xs else None
+        s_v = _xs[smp] if _xs else None
+        if s_v is not None:
+            v_stem = str(s_v.data_file).rsplit(".", 1)[0]
+            if s_v.profile:
+                profile_key, sample_name = s_v.profile, s_v.sample
+                models, profile = KB.fit_models(profile_key), KB.profile(profile_key)
+                st.caption(ui("フィットモデル：`{p}`（試料の構造 {s} から。左の「試料の設定」は使いません）",
+                              "Fit model: `{p}` (from the sample structure {s}; the sidebar setup is not used)", p=profile_key, s=s_v.structure))
+            else:
+                say("WARNING", ui("この試料の構造を判定できませんでした。左の「試料の設定」のモデルを使います。メタデータ CSV で構造を指定すると確実です。",
+                                  "The structure of this sample could not be inferred; the sidebar model is used. Give the "
+                                  "structure in a metadata CSV to be sure."))
+        regions_v = {sp.core_level: sp for sp in _xs_regions.get(v_stem, [])} if v_stem else {}
+        cores = [c for c in models if c in regions_v] + [c for c in regions_v if c not in models]
+        if v_stem and not cores:
+            say("WARNING", ui("この試料の生データ（*_multi.csv か *curve.csv）がタブ 1 で読み込まれていません。",
+                              "No raw data (*_multi.csv or *curve.csv) of this sample was loaded in tab 1."))
+        cores = cores or list(models)
+        _core_lbl = {c: c if c in models else ui("{c}（検証済みモデルなし）", "{c} ({t})", c=c, t=NO_MODEL_TEXT) for c in cores}
+        _metal_v = next((i for i, c in enumerate(cores) if c in ("Ti 2p", "Nb 3d")), 0)
+        core = st.selectbox(ui("② 内殻", "② Core level"), cores, index=_metal_v, key=f"v_core_{v_stem}", format_func=_core_lbl.get)
+        kb_comps = models.get(core, [])
+        unsupported = not kb_comps
+        if unsupported:
+            say("CAUTION", ui("{c}：検証済みのモデルがないため、Python のフィットは行いません。", "{c}: {t}; no Python fit is run.",
+                              c=core, t=NO_MODEL_TEXT) + " " + UNSUPPORTED_REGIONS.get(core, ""))
+        for w in profile.get("core_level_warnings", {}).get(core, []):
+            say(w, "CAUTION")
+        region_sp = regions_v.get(core)
+        if region_sp is not None:
+            st.caption(ui("生データ：{r}（{a:.1f}–{b:.1f} eV、{n} 点）", "Raw data: {r} ({a:.1f}–{b:.1f} eV, {n} points)",
+                          r=region_sp.region, a=region_sp.be.min(), b=region_sp.be.max(), n=len(region_sp.be)))
+        raw_file, importer, use_demo, demo_tag = None, list(MULTIREGION_IMPORTERS)[0], False, None
+        prov_fmt, doublet_conv = "PHI MultiPak Curve Fit Summary", "total"
+        vendor_file = _DemoFile.from_bytes(*_xs_report) if _xs_report else None
+        if vendor_file is not None:
+            st.caption(ui("業者のフィット：報告書 {n} から自動で取ります。", "Provider fit: taken from the report {n}.", n=_xs_report[0]))
+    else:
+        cores = list(models) + [r for r in UNSUPPORTED_REGIONS if r not in models]
+        _core_lbl = {c: c if c in models else ui("{c}（検証済みモデルなし）", "{c} ({t})", c=c, t=NO_MODEL_TEXT) for c in cores}
+        core = st.selectbox(ui("② コア準位", "② Core level"), cores, key="v_core", format_func=_core_lbl.get)
+        kb_comps = models.get(core, [])
+        unsupported = not kb_comps
+        if unsupported:
+            say("CAUTION", ui("{c}：検証済みのモデルがありません。読み込み・表示・出力と業者ピークの取り込みはできますが、Python のフィットは行いません。",
+                              "{c}: {t}. The region can be imported, displayed and exported, and provider peaks can be "
+                              "imported, but no Python fit is run.", c=core, t=NO_MODEL_TEXT) + " " + UNSUPPORTED_REGIONS.get(core, ""))
+        for w in profile.get("core_level_warnings", {}).get(core, []):
+            say(w, "CAUTION")
+        importer_names = list(MULTIREGION_IMPORTERS) + list(SPECTRUM_IMPORTERS)
+        importer_label = {list(MULTIREGION_IMPORTERS)[0]: ui("PHI 複数領域・サーベイ（*_multi.csv, *_su.csv）", "PHI multi-region / survey (*_multi.csv, *_su.csv)"),
+                          list(SPECTRUM_IMPORTERS)[0]: ui("2 列（結合エネルギー, 強度）", "generic two-column (BE, intensity)")}
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(ui("**③ 生データ**", "**③ Raw spectrum**"))
+            importer = st.selectbox(ui("形式", "Format"), importer_names, key="v_importer", format_func=importer_label.get)
+            raw_file = st.file_uploader(ui("生データのファイル", "Raw spectrum file"), type=["csv", "txt", "dat"], key="raw",
+                                        help=ui("2 列の場合：見出しの有無・並び順・区切り文字は問いません。",
+                                                "Two-column files: header optional, any order, any delimiter."))
+            region_sp = None
+            if raw_file is not None and importer in MULTIREGION_IMPORTERS:
+                try:
+                    regs = MULTIREGION_IMPORTERS[importer](raw_file.getvalue())
+                    labels = [f"{r.region} → {r.core_level or ui('内殻ではない', 'not a core level')} ({r.be.min():.1f}–{r.be.max():.1f} eV, "
+                              f"{len(r.be)} pts)" for r in regs]
+                    default = next((i for i, r in enumerate(regs) if r.core_level == core), 0)
+                    pick = st.selectbox(ui("ファイル内の領域", "Region in file"), list(range(len(regs))), index=default,
+                                        format_func=lambda i: labels[i], key=f"region_{raw_file.name}_{core}")
+                    region_sp = regs[pick]
+                    if region_sp.core_level != core:
+                        say("INVALID", ui("選んだ領域 {r} は {c} ではないため、{c} のモデルではフィットしません。",
+                                          "Selected region {r} is not {c}; fitting it with the {c} model is refused.", r=region_sp.region, c=core))
+                except Exception as e:
+                    say("INVALID", ui("複数領域ファイルを読めませんでした：{e}", "Multi-region import failed: {e}", e=e))
+            demo_tag = {"Ti 2p": "Ti2p", "Nb 3d": "Nb3d"}.get(core)
+            use_demo = st.checkbox(ui("練習用データで試す（計算で作った架空のスペクトル。Ti 2p・Nb 3d のみ、生データ未指定のとき）",
+                                      "Try with practice data (a computer-generated, fictitious synthetic demo spectrum; Ti 2p, Nb 3d; used when no raw file is loaded)"),
+                                   value=False, disabled=demo_tag is None, key="v_demo")
+        with c2:
+            st.markdown(ui("**④ 業者のフィット結果（任意）**", "**④ Provider fit (optional)**"))
+            _pf = {"PHI MultiPak Curve Fit Summary": ui("PHI MultiPak（.pptx / Curve Fit Summary）", "PHI MultiPak (.pptx / Curve Fit Summary)"),
+                   "Generic component CSV": ui("成分表 CSV", "Component CSV")}
+            prov_fmt = st.radio(ui("形式", "Format"), list(_pf), horizontal=True, key="v_prov_fmt", format_func=_pf.get)
+            if prov_fmt == "Generic component CSV":
+                vendor_file = st.file_uploader(ui("成分表 CSV（component, BE, FWHM, area[, role, core_level]）",
+                                                  "Provider component CSV (component, BE, FWHM, area[, role, core_level])"), type=["csv"], key="vend")
+                _dc = {"total": ui("2 本の合計", "total (both spin-orbit lines)"), "primary": ui("主線 1 本のみ", "primary line only")}
+                doublet_conv = st.radio(ui("ダブレットの面積は…", "Provider doublet area is…"), list(_dc), horizontal=True, key="v_dconv",
+                                        format_func=_dc.get)
+            else:
+                vendor_file = st.file_uploader(ui("MultiPak の報告書（.pptx）または Curve Fit Summary（.txt / .csv）",
+                                                  "MultiPak report (.pptx) or Curve Fit Summary text (.txt/.csv)"),
+                                               type=["pptx", "txt", "csv"], key="vend_mp")
+                doublet_conv = "total"
+                st.caption(ui("別々に報告されたスピン軌道の 2 本は、領域・分裂幅・面積比・近さで対にします。業者のラベルはそのまま残し、"
+                              "知識ベースへの対応付けは仮のもので、下の表で直せます。",
+                              "Spin-orbit lines reported as separate bands are paired by region, splitting, area ratio and "
+                              "proximity. Provider labels are kept; the KB mapping below is tentative and editable."))
     with st.expander(ui("フィットの条件（バックグラウンド・範囲）", "Fit settings (background, window)"), expanded=False):
         f1, f2 = st.columns(2)
         bg = f1.selectbox(ui("バックグラウンド", "Background"), ["shirley", "linear"], key="v_bg",
@@ -632,7 +900,7 @@ with tab_v:
                            "**Provider fit (MultiPak)** — {n} summaries in file, {m} for {c}", n=len(keys), m=len(cands), c=core))
             if len(cands):
                 opts = list(cands["summary_index"])
-                raw_name = raw_file.name if raw_file is not None else ""
+                raw_name = raw_file.name if raw_file is not None else (v_stem or "")
                 stems = [str(f).rsplit(".", 1)[0] for f in cands["data_file"]]
                 default = next((i for i, (st_, cm) in enumerate(zip(stems, cands["comment"].astype(str)))
                                 if (st_ and st_ in raw_name) or (cm and cm == sample_name)), 0)
@@ -701,7 +969,8 @@ with tab_v:
             st.download_button(ui("業者のピーク（対にしたもの、.csv）", "Provider peaks (paired) .csv"), csv_bytes(mp_state["mapping"].assign(provenance="provider_paired_doublet")),
                                file_name=f"{sample_name}_{core.replace(' ', '')}_provider_peaks.csv")
 
-    if st.button(ui("④ Python でフィット", "④ Run Python fit"), type="primary", disabled=unsupported, key="btn_fit"):
+    fit_key = f"{sample_name} | {profile_key} | {core}" if v_src == "tab1" else f"{profile_key} | {core}"
+    if st.button(ui("Python でフィット", "Run Python fit"), type="primary", disabled=unsupported, key="btn_fit"):
         try:
             if region_sp is not None:
                 sp = region_sp
@@ -717,7 +986,7 @@ with tab_v:
                 sp = crop(sp, *win)
             fr = fit_core_level(sp.be, sp.intensity, comps, background=bg, endpoint_avg=int(endavg), corr_threshold=corr_th,
                                 spectrum_core_level=sp.core_level)
-            st.session_state.setdefault("fits", {})[f"{profile_key} | {core}"] = {"fit": fr, "import_notes": sp.notes,
+            st.session_state.setdefault("fits", {})[fit_key] = {"fit": fr, "import_notes": sp.notes,
                                                              "core": core, "spectrum": (sp.be, sp.intensity, sp.core_level),
                                                              "ident": assess_identifiability(fr),
                                                              "settings": {"background": bg, "endpoint_avg": int(endavg),
@@ -728,7 +997,7 @@ with tab_v:
         except Exception as e:
             say("INVALID", ui("フィットできませんでした：{e}", "Fit failed: {e}", e=e))
 
-    fitstate = st.session_state.get("fits", {}).get(f"{profile_key} | {core}")
+    fitstate = st.session_state.get("fits", {}).get(fit_key)
     if fitstate:
         fr = fitstate["fit"]
         for n in fitstate["import_notes"]:
@@ -855,6 +1124,8 @@ with tab_v:
                                      "provider_mapping_log": mp_state["mapping_log"]})
             except Exception as e:
                 say("INVALID", ui("業者の結果と照合できませんでした：{e}", "Provider comparison failed: {e}", e=e))
+
+    profile_key, models, profile, sample_name = _sb_state
 
 # ------------------------------------------------------------------ 4 KB
 with tab_kb:
@@ -989,207 +1260,3 @@ with tab_rep:
                        file_name=f"{ds_name}_calibration_summary.html", mime="text/html")
     st.caption(f"KB v{KB.version} · git {cal['git_commit'] or 'unavailable'}")
 
-# ------------------------------------------------------------------ 6 cross-sample
-class _DemoFile:
-    """A file of examples/synthetic_demo shaped like an uploaded file (name + getvalue)."""
-
-    def __init__(self, path: Path):
-        self.name, self._data = path.name, path.read_bytes()
-
-    def getvalue(self) -> bytes:
-        return self._data
-
-
-with tab_x:
-    steps("業者から届いたフォルダを選ぶだけです（報告書 .pptx と CSV を自動で振り分けます）。下に「ファイルと試料の対応」と試料ごとの比較表が出ます。"
-          "ファイル名は業者から届いたままにしてください。",
-          "Just select the folder from the provider (the .pptx report and the CSV files are sorted automatically). The "
-          "file-to-sample matching and the comparison tables appear below. Keep the provider's file names unchanged.")
-    st.caption(ui("業者のフィット（スピン軌道の対にして、各試料の知識ベースのモデルに仮対応）、サーベイの at.%、暫定の定量値を並べます。"
-                  "ここで化学的な解釈を加えることはなく、すべての値に出どころを付けています。",
-                  "Side-by-side view of provider fits (paired, tentatively mapped to each sample's KB model), survey at.% and "
-                  "provisional quantities. Nothing here changes or adds a chemical interpretation; every value carries its "
-                  "provenance."))
-    _src = {"folder": ui("📁 フォルダごと選ぶ", "📁 Select the whole folder"),
-            "files": ui("📄 ファイルを個別に選ぶ", "📄 Select files one by one"),
-            "demo": ui("🧪 練習用データ（計算で作った架空のスペクトル 3 試料）", "🧪 Practice data (three fictitious, computer-generated samples)")}
-    src_mode = st.radio(ui("読み込み方", "How to load"), list(_src), format_func=_src.get, horizontal=True, key="xs_src")
-    rep_file = meta_file = None
-    raw_files = []
-    if src_mode == "folder":
-        folder = st.file_uploader(
-            ui("業者から届いたフォルダを選ぶ（報告書 .pptx と CSV が入ったフォルダ）", "Select the provider's folder (with the .pptx report and the CSV files)"),
-            type=["pptx", "csv", "txt"], accept_multiple_files="directory", key="xs_folder",
-            help=ui("報告書（.pptx か Curve Fit Summary）、生データ CSV、試料メタデータ CSV（あれば）を自動で振り分けます。",
-                    "The report (.pptx or Curve Fit Summary), raw-data CSVs and a sample-metadata CSV (if any) are sorted automatically."))
-        if folder:
-            reports, meta_file, raw_files = split_folder(folder)
-            if not reports:
-                say("INVALID", ui("フォルダに業者の報告書（.pptx か Curve Fit Summary のテキスト）が見つかりません。",
-                                  "No provider report (.pptx or Curve Fit Summary text) found in the folder."))
-            elif len(reports) == 1:
-                rep_file = reports[0]
-            else:
-                _ri = st.selectbox(ui("報告書が {n} 個あります。使う報告書", "{n} reports found; report to use", n=len(reports)),
-                                   list(range(len(reports))), format_func=lambda i: base_name(reports[i].name), key="xs_rep_pick")
-                rep_file = reports[_ri]
-            if rep_file is not None:
-                st.caption(ui("報告書：{r}　／　CSV：{n} ファイル　／　メタデータ：{m}",
-                              "Report: {r}  /  CSV: {n} files  /  metadata: {m}", r=base_name(rep_file.name), n=len(raw_files),
-                              m=base_name(meta_file.name) if meta_file else ui("なし", "none")))
-    elif src_mode == "files":
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            rep_file = st.file_uploader(ui("① 業者の報告書（.pptx / Curve Fit Summary）", "① Provider report (MultiPak .pptx or Curve Fit Summary text)"),
-                                        type=["pptx", "txt", "csv"], key="xs_rep")
-        with c2:
-            raw_files = st.file_uploader(ui("② 生データの CSV（任意・まとめて選べます）", "② Raw-data CSV files (optional; select them all at once)"),
-                                         type=["csv", "txt"], accept_multiple_files=True, key="xs_raw",
-                                         help=ui("*_multi.csv は再フィットに、*curve.csv は複数領域ファイルがない内殻の再フィットに使い、"
-                                                 "*_su.csv（サーベイ）はフィットしません。",
-                                                 "*_multi.csv files are refitted, *curve.csv files are used for core levels without a "
-                                                 "multi-region file, and *_su.csv (survey) is not fitted.")) or []
-        with c3:
-            meta_file = st.file_uploader(ui("③ 試料メタデータ（任意、.csv）", "③ Sample metadata (optional, .csv)"), type=["csv"], key="xs_meta")
-    else:
-        rep_file = _DemoFile(DEMO / "SYNTHETIC_provider_report.txt")
-        raw_files = [_DemoFile(f) for f in sorted(DEMO.glob("SYNdemo*_SYNTHETIC_multi.csv"))]
-        meta_file = _DemoFile(DEMO / "SYNTHETIC_sample_metadata.csv")
-        say("INFO", ui("練習用データを使っています（examples/synthetic_demo。実データではありません）。",
-                       "Using the practice data (examples/synthetic_demo; not real data)."))
-    with st.expander(ui("試料メタデータ（任意）のテンプレート", "Sample-metadata template (optional)")):
-        st.caption(ui("組成・相・処理条件などを試料ごとに書いておくと、比較表でまとめたり並べたりできます。無ければ業者のコメント（例：Ti3C2Tx）から推定します。",
-                      "Composition, phase and treatment per sample let the tables group samples. Without it they are inferred "
-                      "from the provider comment (e.g. Ti3C2Tx)."))
-        m1, m2 = st.columns(2)
-        m1.download_button(ui("メタデータのテンプレート（.csv）", "Metadata template (.csv)"), csv_bytes(smeta.template()),
-                           file_name="sample_metadata_template.csv")
-        ex = ROOT / "templates" / "next_dataset_example.csv"
-        if ex.exists():
-            m2.download_button(ui("記入例：次の 5 試料（.csv）", "Example: next five-sample dataset (.csv)"), ex.read_bytes(),
-                               file_name="next_dataset_example.csv")
-    st.session_state["xs_name"] = st.text_input(ui("データセット名", "Dataset name"), value=st.session_state.get("xs_name", "dataset"),
-                                                key="xs_name_in")
-    if rep_file is not None:
-        try:
-            meta_df = smeta.read(meta_file.getvalue()) if meta_file is not None else None
-            bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), base_name(rep_file.name))
-            files = list(dict.fromkeys(bands_x["data_file"]))
-            _multi = (bands_x.drop_duplicates("summary_index").groupby(["data_file", "core_level"]).size())
-            st.session_state["xs_multi_fit"] = [(str(f).rsplit(".", 1)[0], c, int(n)) for (f, c), n in _multi.items() if n > 1]
-            matched = match_uploads(raw_files, files)
-            raw_by_stem = matched.raw_regions
-            st.session_state["xs_match"] = matched.rows
-            samples_x = []
-            for f in files:
-                stem = str(f).rsplit(".", 1)[0]
-                meta_row = None
-                if meta_df is not None:
-                    hit = meta_df[(meta_df["provider_file"] == stem) | (meta_df["sample_id"] == str(
-                        bands_x.loc[bands_x["data_file"] == f, "comment"].iloc[0]))]
-                    meta_row = hit.iloc[0].to_dict() if len(hit) else None
-                samples_x.append(ds.build_sample(f, bands_x, act_x, KB, meta=meta_row, raw_regions=raw_by_stem.get(stem)))
-            st.session_state["xs_samples"] = samples_x
-        except Exception as e:
-            say("INVALID", ui("試料を組み立てられませんでした：{e}", "Dataset assembly failed: {e}", e=e))
-            samples_x = []
-    else:
-        samples_x = st.session_state.get("xs_samples") or []
-    for _stem, _core, _n in (st.session_state.get("xs_multi_fit") or [] if samples_x else []):
-        say("INFO", ui("{s} の {c}：報告書に業者のフィットが {n} 通りあります。比較表には最後のものだけが入ります。"
-                       "ほかのフィットとの照合はタブ 2（フィット検証）で選べます。",
-                       "{s} {c}: the report has {n} provider fits; the comparison tables show the last one. "
-                       "Pick the others in tab 2 (Fit check).", s=_stem, c=_core, n=_n))
-    _rows = st.session_state.get("xs_match") if samples_x else None
-    if _rows:
-        _kind = {"multi": ui("複数領域（再フィットに使用）", "multi-region (refit)"),
-                 "curve": ui("業者のフィット範囲", "provider curve window"),
-                 "survey": ui("サーベイ", "survey"), "other": ui("その他", "other")}
-        _status = {"used": ui("✅ 使用", "✅ used"),
-                   "superseded": ui("— 同じ内殻の複数領域ファイルを優先", "— multi-region file used instead"),
-                   "survey": ui("— フィットしない", "— not fitted"),
-                   "no_sample": ui("⚠ 報告書に対応する試料がない", "⚠ no matching sample in the report"),
-                   "unknown_region": ui("⚠ 領域名を読めない", "⚠ region not recognised"),
-                   "no_core_level": ui("⚠ 内殻の領域がない", "⚠ no core-level region"),
-                   "failed": ui("⛔ 読めない", "⛔ import failed")}
-        _labels = {str(s.data_file).rsplit(".", 1)[0]: s.sample for s in samples_x}
-        _n_used = sum(r["status"] == "used" for r in _rows)
-        _n_bad = sum(r["status"] not in ("used", "superseded", "survey") for r in _rows)
-        _n_smp = len({r["stem"] for r in _rows if r["status"] == "used"})
-        (st.warning if _n_bad else st.success)(ui(
-            "CSV {n} ファイルのうち {u} ファイルを {k} 試料の再フィットに使いました。対応できなかったファイル：{b}。詳しくは下の表を開いてください。",
-            "{u} of {n} CSV files are used for the refits of {k} sample(s); files not matched or not read: {b}. Open the table below for details.",
-            n=len(_rows), u=_n_used, k=_n_smp, b=_n_bad))
-        with st.expander(ui("読み込んだファイルと試料の対応（{n} ファイル）", "Uploaded files and the samples they were matched to ({n} files)",
-                            n=len(_rows)), expanded=any(r["status"] not in ("used", "superseded", "survey") for r in _rows)):
-            st.caption(ui("報告書のデータファイル名（例：okawa121.spe → okawa121_…）で照合します。同じ内殻に複数領域ファイルと curve ファイルの"
-                          "両方があるときは、複数領域ファイルで再フィットします。",
-                          "Files are matched by the provider data-file name (e.g. okawa121.spe → okawa121_…). When both a multi-region "
-                          "file and a curve file supply a core level, the multi-region file is refitted."))
-            st.dataframe(pd.DataFrame([{ui("ファイル", "file"): r["file"], ui("種類", "kind"): _kind[r["kind"]],
-                                        ui("試料", "sample"): _labels.get(r["stem"], "—"), ui("内殻", "core levels"): r["regions"],
-                                        ui("状態", "status"): _status[r["status"]] + (f"（{r['detail']}）" if r["detail"] else "")}
-                                       for r in _rows]), hide_index=True)
-        if not any(r["kind"] == "multi" and r["status"] == "used" for r in _rows):
-            say("CAUTION", ui("複数領域ファイル（*_multi.csv）がありません。curve ファイルは業者のフィット範囲だけを含むため、"
-                              "その範囲で再フィットしています。",
-                              "No multi-region file (*_multi.csv). Curve files cover only the provider's fit window, so the "
-                              "refit uses that window."))
-    if samples_x:
-        info = pd.DataFrame([{"sample": s.sample, "data_file": s.data_file, "phase": s.meta.get("phase"),
-                              "composition": s.meta.get("nominal_composition"), "treatment": s.meta.get("treatment"),
-                              "treatment_temperature_C": s.meta.get("treatment_temperature_C"), "structure": s.structure,
-                              "profile": s.profile, "notes": "; ".join(s.notes)} for s in samples_x])
-        st.dataframe(info, hide_index=True)
-        st.caption(ui("このタブでは、試料の構造を報告書のコメント（例：Ti3C2Tx）かメタデータから試料ごとに決めます。左の「試料の設定」は使いません。",
-                      "In this tab the structure of each sample comes from the provider comment (e.g. Ti3C2Tx) or the metadata; "
-                      "the sidebar sample setup is not used."))
-        g1, g2 = st.columns(2)
-        _gb = {"none": ui("まとめない", "none"), "phase": ui("相（MAX / MXene）", "phase"),
-               "composition": ui("組成", "composition"), "treatment": ui("処理", "treatment")}
-        group_by = g1.selectbox(ui("まとめ方", "Group by"), list(_gb), key="xs_group", format_func=_gb.get)
-        chosen = g2.multiselect(ui("表示する試料", "Samples"), list(info["sample"]), default=list(info["sample"]), key="xs_pick")
-        sel = [s for s in samples_x if s.sample in chosen]
-        long = ds.long_table(sel)
-
-        def _w(quantity, core=None):
-            w = ds.wide(long, quantity, core)
-            if w.empty or group_by == "none":
-                return w
-            gmap = long.drop_duplicates("sample").set_index("sample")[group_by].astype(str).to_dict()
-            w.columns = pd.MultiIndex.from_tuples([(gmap.get(c, ""), c) for c in w.columns], names=[group_by, "sample"])
-            return w.sort_index(axis=1)
-
-        st.markdown(ui("#### 暫定の定量値（基準値＝校正候補を骨格に数えない、代替値＝数える。平均はしない）",
-                       "#### Provisional quantities (nominal = candidate excluded; alternative = candidate as framework; never averaged)"))
-        qs = ds.quant_summary(sel)
-        st.dataframe(qs, hide_index=True)
-        cores_x = sorted({c for s in sel for c in s.mappings})
-        _metal_first = next((i for i, c in enumerate(cores_x) if c in ("Ti 2p", "Nb 3d")), 0)
-        core_pick = st.selectbox(ui("下の表で見るコア準位", "Core level for BE / area-fraction tables"), cores_x, index=_metal_first, key="xs_core")
-        if core_pick in UNSUPPORTED_REGIONS:
-            say("CAUTION", ui("{c}：検証済みモデルなし。業者のピークを読み込んだまま表示しています（対にできるものは対にしています）。",
-                              "{c}: {t}; provider peaks shown as imported (paired where applicable).", c=core_pick, t=NO_MODEL_TEXT))
-        st.markdown(ui("#### 成分ごとの結合エネルギー — {c}（業者のフィット）", "#### Fitted BE by component — {c} (provider; provenance provider_paired_doublet / provider_raw_fit)", c=core_pick))
-        st.dataframe(_w("BE (eV)", core_pick))
-        st.markdown(ui("#### 成分ごとの面積分率 — {c}", "#### Area fraction by component — {c}", c=core_pick))
-        st.dataframe(_w("area fraction", core_pick))
-        if any(s.python for s in sel):
-            st.markdown(ui("#### Python の再フィット — {c}（面積分率。同定可能性は縦長の表に）", "#### Python refit — {c} (area fraction; identifiability in the long table)", c=core_pick))
-            st.dataframe(_w("area fraction [python]", core_pick))
-        for oc in ("O 1s", "F 1s"):
-            if oc in cores_x and oc != core_pick:
-                st.markdown(ui("#### {o} の分率", "#### {o} fractions", o=oc))
-                st.dataframe(_w("area fraction", oc))
-        st.markdown(ui("#### サーベイの at.%（業者の原子濃度表。測っていれば残留 Al・Cl・S・Li も）",
-                       "#### Survey at.% (provider atomic concentration table) — incl. Al residual, Cl, S, Li where measured"))
-        st.dataframe(_w("at.%"))
-        unres = long[(long["quantity"] == "BE (eV)") & long["identifiability"].astype(str).ne("")]
-        if len(unres):
-            st.markdown(ui("#### 未解決・モデル外の業者成分（ラベルは中立。帰属はしない）",
-                           "#### Unresolved / unmodelled provider components (labels are neutral; no assignment)"))
-            st.dataframe(unres[["sample", "core_level", "component", "provider_label", "value", "identifiability"]]
-                         .rename(columns={"value": "BE (eV)"}), hide_index=True)
-        st.download_button(ui("比較表（縦長・出どころ付き、.csv）", "Comparison long table with provenance (.csv)"), csv_bytes(long.assign(app_version=__version__, kb_version=KB.version)),
-                           file_name=f"{st.session_state['xs_name']}_comparison_long.csv")
-        st.download_button(ui("暫定の定量値（.csv）", "Provisional quantities (.csv)"), csv_bytes(qs.assign(app_version=__version__, kb_version=KB.version)), file_name=f"{st.session_state['xs_name']}_provisional.csv")
