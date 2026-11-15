@@ -71,3 +71,24 @@ def test_upload_order_does_not_matter():
     r1 = {sp.core_level: len(sp.be) for sp in match_uploads(a, ["SYNdemo201.spe"]).raw_regions["SYNdemo201"]}
     r2 = {sp.core_level: len(sp.be) for sp in match_uploads(a[::-1], ["SYNdemo201.spe"]).raw_regions["SYNdemo201"]}
     assert r1 == r2 and r1["C 1s"] == 161
+
+
+def test_numbered_curve_variants_are_recognised():
+    m = match_uploads([F("okawa999_Ti3C2Tx_Ti2p-4curve.csv", "Energy,Spectrum,Background\n" + _curve(452, 467)),
+                       F("okawa999_Ti3C2Tx_Ti2p-2curve.csv", "Energy,Spectrum,Background\n" + _curve(452, 466))],
+                      ["okawa999.spe"])
+    assert [(r["status"], r["regions"], r["detail"]) for r in m.rows] == [("used", "Ti 2p", "Ti2p-2"), ("used", "Ti 2p", "Ti2p-4")]
+    assert [sp.core_level for sp in m.raw_regions["okawa999"]] == ["Ti 2p"]
+
+
+def test_folder_upload_is_sorted_into_report_metadata_and_raw():
+    from upload_match import split_folder
+    rep = F("run/report.pptx", b"PK\x03\x04")
+    txt = F("run/sub/summary.txt", "Curve Fit Summary\n...")
+    meta = F("run/meta.csv", "sample_id,provider_file,phase\nA,okawa1,MXene\n")
+    raw = [F("run/okawa1_X_multi.csv", "Full"), F("run/okawa1_X_C1scurve.csv", "1,2")]
+    reports, m, r = split_folder([rep, txt, meta] + raw)
+    assert [x.name for x in reports] == ["run/report.pptx", "run/sub/summary.txt"]
+    assert m is meta and r == raw
+    assert match_stem("okawa1_X_multi.csv", ["okawa1"]) == "okawa1"
+    assert match_uploads(raw, ["okawa1.spe"]).rows[0]["file"] == "okawa1_X_C1scurve.csv"   # folder part dropped

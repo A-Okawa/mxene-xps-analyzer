@@ -128,9 +128,19 @@ def test_japanese_password_gate():
 @pytest.mark.parametrize("lang", ["ja", "en"])
 def test_synthetic_demo_dataset_in_compare_tab(lang):
     at = _app(lang)
-    at.checkbox(key="xs_demo").check().run()
+    at.radio(key="xs_src").set_value("demo").run()
     assert not at.exception
     assert not at.error, [e.value for e in at.error]
     samples = at.session_state["xs_samples"]
     assert len(samples) == 3
     assert at.multiselect(key="xs_pick").value == [s.sample for s in samples]
+
+
+def test_hf_hcl_requests_f1s_and_cl2p():
+    at = _app()
+    at.selectbox(key="sb_structure").select("Ti3C2Tx").run()
+    at.multiselect(key="sb_etch_Ti3C2Tx").set_value(["HF/HCl"]).run()
+    assert not at.exception
+    regions = set(at.dataframe[0].value["region"]) if False else None
+    req = next(t for t in at.text_area if t.label == "Request text").value
+    assert "HF/HCl" in req and "F 1s" in req and "Cl 2p" in req

@@ -262,3 +262,18 @@ The five `261030_sasakiXPS` samples are the **calibration/development dataset** 
 model); they are not independent validation. No hold-out dataset exists yet; **prospective hold-out validation: not yet
 performed**. The hold-out tooling (`tools/validation/`, `docs/HOLDOUT_VALIDATION.md`) is kept for a future dataset
 measured after this frozen release candidate. App 1.6.0, KB 1.5.0, numerical results and scientific open items unchanged.
+
+## Import fixes after a new provider export (2026-11-16; category A, software/import only)
+
+A second provider dataset (`261112_okawaXPS`, Ti3C2Tx; not yet used for calibration or validation) exposed two
+import gaps. Both are importer fixes; the KB (1.5.0), peak models, constraints, windows and quantification rules
+are unchanged.
+- `dataset.parse_atomic_concentration`: also reads the MultiPak variant whose header row is only the region names
+  (no `Abscissa` label) and whose concentration row has no leading label. Previously such a table was silently
+  skipped, so no provisional quantities were produced for the sample.
+- `dataset.phase_from_composition`: `Ti3C2Tx` (digits between C and Tx) is now recognised as an MXene, so the sample
+  maps to the `Ti3C2Tx` structure / `ti3c2_brette` profile instead of no profile (no refit, no quantification).
+- `upload_match.py` (UI): curve exports named `<Region>-N curve.csv` (provider fit variants, e.g. `Ti2p-4curve.csv`)
+  are recognised. When a report holds several provider fits for one region, the comparison table keeps the last one
+  (unchanged behaviour of `dataset.build_sample`) and the UI now says so.
+Tests: `tests/test_provider_report_variants.py`, `tests/test_upload_match.py` (synthetic numbers only).

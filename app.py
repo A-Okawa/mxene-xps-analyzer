@@ -47,7 +47,7 @@ from mxene_xps.validation import (IDENTIFIABILITY_WARNING, compare_components, c
 
 import i18n  # noqa: E402
 from i18n import ui  # noqa: E402
-from upload_match import match_uploads  # noqa: E402
+from upload_match import base_name, match_uploads, split_folder  # noqa: E402
 
 KB = default_kb()
 FIX = ROOT / "tests" / "fixtures"
@@ -164,7 +164,7 @@ with st.sidebar:
                                 ("MAX_01" if phase == "MAX" else "MXene_01"), key=f"sb_name_{structure}",
                                 help=ui("ダウンロードするファイル名にも使います。", "Also used in the names of downloaded files."))
     etchants = st.multiselect(ui("エッチング・処理の薬品", "Etching / processing chemistry"),
-                              ["HF", "LiF/HCl", "NaF/HCl", "KF/HCl", "NH4F/HCl", "TBAOH", "molten chloride", "H2SO4 (post-treatment)", "other"],
+                              ["HF", "HF/HCl", "LiF/HCl", "NaF/HCl", "KF/HCl", "NH4F/HCl", "TBAOH", "molten chloride", "H2SO4 (post-treatment)", "other"],
                               default=["LiF/HCl"] if structure == "(Nb,Ti)2CTx" else [], key=f"sb_etch_{structure}",
                               help=ui("測定を依頼する領域（F 1s、Cl 2p、Li 1s など）の判断に使います。",
                                       "Used to decide which regions to request (F 1s, Cl 2p, Li 1s, ...)."))
@@ -263,9 +263,9 @@ with st.expander(ui("📖 使い方", "📖 How to use"), expanded=not _started)
         "| check starting values, assignments and references | **5. Knowledge base** | nothing |\n"
         "| ask a provider for the next measurement and fit | **6. Request** | nothing (download the request text) |"))
     st.markdown(ui(
-        "データが手元になくても、タブ 1 と 2 の **合成デモデータで試す** で一通りの動きを確かめられます。"
+        "データが手元になくても、タブ 1 と 2 の **練習用データ**（計算で作った架空のスペクトル）で一通りの動きを確かめられます。"
         "ファイルは業者から届いた名前のまま入れてください（報告書と生データをファイル名で対応付けます）。",
-        "Without data of your own, **Try with synthetic demo data** in tabs 1 and 2 shows the whole flow. Keep the "
+        "Without data of your own, the **practice data** (computer-generated, fictitious spectra) in tabs 1 and 2 shows the whole flow. Keep the "
         "provider's file names unchanged (the report and the raw files are matched by name)."))
 
 ctx_warn = metadata_warnings(md)
@@ -528,8 +528,8 @@ with tab_v:
             except Exception as e:
                 say("INVALID", ui("複数領域ファイルを読めませんでした：{e}", "Multi-region import failed: {e}", e=e))
         demo_tag = {"Ti 2p": "Ti2p", "Nb 3d": "Nb3d"}.get(core)
-        use_demo = st.checkbox(ui("合成デモデータで試す（Ti 2p・Nb 3d のみ。生データ未指定のとき）",
-                                  "Try with synthetic demo spectrum (Ti 2p, Nb 3d; used when no raw file is loaded)"),
+        use_demo = st.checkbox(ui("練習用データで試す（計算で作った架空のスペクトル。Ti 2p・Nb 3d のみ、生データ未指定のとき）",
+                                  "Try with practice data (a computer-generated, fictitious synthetic demo spectrum; Ti 2p, Nb 3d; used when no raw file is loaded)"),
                                value=False, disabled=demo_tag is None, key="v_demo")
     with c2:
         st.markdown(ui("**③ 業者のフィット結果（任意）**", "**③ Provider fit (optional)**"))
@@ -1001,51 +1001,82 @@ class _DemoFile:
 
 
 with tab_x:
-    steps("① 業者の報告書（MultiPak の .pptx か Curve Fit Summary）を入れる → ② 同じフォルダの CSV をまとめて入れる（任意。"
-          "入れると Python の再フィットも並べます） → ③ 試料メタデータ（任意） → 下に「ファイルと試料の対応」と試料ごとの比較表が出ます。"
+    steps("業者から届いたフォルダを選ぶだけです（報告書 .pptx と CSV を自動で振り分けます）。下に「ファイルと試料の対応」と試料ごとの比較表が出ます。"
           "ファイル名は業者から届いたままにしてください。",
-          "① Load the provider report (MultiPak .pptx or Curve Fit Summary) → ② add the CSV files from the same folder "
-          "(optional; adds Python refits) → ③ sample metadata (optional) → the file-to-sample matching and the comparison "
-          "tables appear below. Keep the provider's file names unchanged.")
+          "Just select the folder from the provider (the .pptx report and the CSV files are sorted automatically). The "
+          "file-to-sample matching and the comparison tables appear below. Keep the provider's file names unchanged.")
     st.caption(ui("業者のフィット（スピン軌道の対にして、各試料の知識ベースのモデルに仮対応）、サーベイの at.%、暫定の定量値を並べます。"
                   "ここで化学的な解釈を加えることはなく、すべての値に出どころを付けています。",
                   "Side-by-side view of provider fits (paired, tentatively mapped to each sample's KB model), survey at.% and "
                   "provisional quantities. Nothing here changes or adds a chemical interpretation; every value carries its "
                   "provenance."))
-    use_demo_x = st.checkbox(ui("合成デモデータで試す（3 試料分の合成データ。実データではありません）",
-                                "Try with synthetic demo data (three synthetic samples; not real data)"), value=False, key="xs_demo")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        rep_file = st.file_uploader(ui("① 業者の報告書（.pptx / Curve Fit Summary）", "① Provider report (MultiPak .pptx or Curve Fit Summary text)"),
-                                    type=["pptx", "txt", "csv"], key="xs_rep", disabled=use_demo_x)
-    with c2:
-        raw_files = st.file_uploader(ui("② 生データの CSV（任意・まとめて選べます）", "② Raw-data CSV files (optional; select them all at once)"),
-                                     type=["csv", "txt"], accept_multiple_files=True, key="xs_raw", disabled=use_demo_x,
-                                     help=ui("業者から届いたフォルダの CSV をまとめて選んでください。*_multi.csv は再フィットに、"
-                                             "*curve.csv は複数領域ファイルがない内殻の再フィットに使い、*_su.csv（サーベイ）はフィットしません。",
-                                             "Select all CSV files from the provider's folder. *_multi.csv files are refitted, *curve.csv "
-                                             "files are used for core levels without a multi-region file, and *_su.csv (survey) is not fitted."))
-    with c3:
-        meta_file = st.file_uploader(ui("③ 試料メタデータ（任意、.csv）", "③ Sample metadata (optional, .csv)"), type=["csv"], key="xs_meta",
-                                     disabled=use_demo_x)
-        st.download_button(ui("メタデータのテンプレート（.csv）", "Metadata template (.csv)"), csv_bytes(smeta.template()),
-                           file_name="sample_metadata_template.csv")
-        ex = ROOT / "templates" / "next_dataset_example.csv"
-        if ex.exists():
-            st.download_button(ui("記入例：次の 5 試料（.csv）", "Example: next five-sample dataset (.csv)"), ex.read_bytes(),
-                               file_name="next_dataset_example.csv")
-    if use_demo_x:
+    _src = {"folder": ui("📁 フォルダごと選ぶ", "📁 Select the whole folder"),
+            "files": ui("📄 ファイルを個別に選ぶ", "📄 Select files one by one"),
+            "demo": ui("🧪 練習用データ（計算で作った架空のスペクトル 3 試料）", "🧪 Practice data (three fictitious, computer-generated samples)")}
+    src_mode = st.radio(ui("読み込み方", "How to load"), list(_src), format_func=_src.get, horizontal=True, key="xs_src")
+    rep_file = meta_file = None
+    raw_files = []
+    if src_mode == "folder":
+        folder = st.file_uploader(
+            ui("業者から届いたフォルダを選ぶ（報告書 .pptx と CSV が入ったフォルダ）", "Select the provider's folder (with the .pptx report and the CSV files)"),
+            type=["pptx", "csv", "txt"], accept_multiple_files="directory", key="xs_folder",
+            help=ui("報告書（.pptx か Curve Fit Summary）、生データ CSV、試料メタデータ CSV（あれば）を自動で振り分けます。",
+                    "The report (.pptx or Curve Fit Summary), raw-data CSVs and a sample-metadata CSV (if any) are sorted automatically."))
+        if folder:
+            reports, meta_file, raw_files = split_folder(folder)
+            if not reports:
+                say("INVALID", ui("フォルダに業者の報告書（.pptx か Curve Fit Summary のテキスト）が見つかりません。",
+                                  "No provider report (.pptx or Curve Fit Summary text) found in the folder."))
+            elif len(reports) == 1:
+                rep_file = reports[0]
+            else:
+                _ri = st.selectbox(ui("報告書が {n} 個あります。使う報告書", "{n} reports found; report to use", n=len(reports)),
+                                   list(range(len(reports))), format_func=lambda i: base_name(reports[i].name), key="xs_rep_pick")
+                rep_file = reports[_ri]
+            if rep_file is not None:
+                st.caption(ui("報告書：{r}　／　CSV：{n} ファイル　／　メタデータ：{m}",
+                              "Report: {r}  /  CSV: {n} files  /  metadata: {m}", r=base_name(rep_file.name), n=len(raw_files),
+                              m=base_name(meta_file.name) if meta_file else ui("なし", "none")))
+    elif src_mode == "files":
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            rep_file = st.file_uploader(ui("① 業者の報告書（.pptx / Curve Fit Summary）", "① Provider report (MultiPak .pptx or Curve Fit Summary text)"),
+                                        type=["pptx", "txt", "csv"], key="xs_rep")
+        with c2:
+            raw_files = st.file_uploader(ui("② 生データの CSV（任意・まとめて選べます）", "② Raw-data CSV files (optional; select them all at once)"),
+                                         type=["csv", "txt"], accept_multiple_files=True, key="xs_raw",
+                                         help=ui("*_multi.csv は再フィットに、*curve.csv は複数領域ファイルがない内殻の再フィットに使い、"
+                                                 "*_su.csv（サーベイ）はフィットしません。",
+                                                 "*_multi.csv files are refitted, *curve.csv files are used for core levels without a "
+                                                 "multi-region file, and *_su.csv (survey) is not fitted.")) or []
+        with c3:
+            meta_file = st.file_uploader(ui("③ 試料メタデータ（任意、.csv）", "③ Sample metadata (optional, .csv)"), type=["csv"], key="xs_meta")
+    else:
         rep_file = _DemoFile(DEMO / "SYNTHETIC_provider_report.txt")
         raw_files = [_DemoFile(f) for f in sorted(DEMO.glob("SYNdemo*_SYNTHETIC_multi.csv"))]
         meta_file = _DemoFile(DEMO / "SYNTHETIC_sample_metadata.csv")
-        say("INFO", ui("合成デモデータを使っています（examples/synthetic_demo）。", "Using the synthetic demo data (examples/synthetic_demo)."))
+        say("INFO", ui("練習用データを使っています（examples/synthetic_demo。実データではありません）。",
+                       "Using the practice data (examples/synthetic_demo; not real data)."))
+    with st.expander(ui("試料メタデータ（任意）のテンプレート", "Sample-metadata template (optional)")):
+        st.caption(ui("組成・相・処理条件などを試料ごとに書いておくと、比較表でまとめたり並べたりできます。無ければ業者のコメント（例：Ti3C2Tx）から推定します。",
+                      "Composition, phase and treatment per sample let the tables group samples. Without it they are inferred "
+                      "from the provider comment (e.g. Ti3C2Tx)."))
+        m1, m2 = st.columns(2)
+        m1.download_button(ui("メタデータのテンプレート（.csv）", "Metadata template (.csv)"), csv_bytes(smeta.template()),
+                           file_name="sample_metadata_template.csv")
+        ex = ROOT / "templates" / "next_dataset_example.csv"
+        if ex.exists():
+            m2.download_button(ui("記入例：次の 5 試料（.csv）", "Example: next five-sample dataset (.csv)"), ex.read_bytes(),
+                               file_name="next_dataset_example.csv")
     st.session_state["xs_name"] = st.text_input(ui("データセット名", "Dataset name"), value=st.session_state.get("xs_name", "dataset"),
                                                 key="xs_name_in")
     if rep_file is not None:
         try:
             meta_df = smeta.read(meta_file.getvalue()) if meta_file is not None else None
-            bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), rep_file.name)
+            bands_x, act_x = ds.read_provider_report(rep_file.getvalue(), base_name(rep_file.name))
             files = list(dict.fromkeys(bands_x["data_file"]))
+            _multi = (bands_x.drop_duplicates("summary_index").groupby(["data_file", "core_level"]).size())
+            st.session_state["xs_multi_fit"] = [(str(f).rsplit(".", 1)[0], c, int(n)) for (f, c), n in _multi.items() if n > 1]
             matched = match_uploads(raw_files, files)
             raw_by_stem = matched.raw_regions
             st.session_state["xs_match"] = matched.rows
@@ -1064,6 +1095,11 @@ with tab_x:
             samples_x = []
     else:
         samples_x = st.session_state.get("xs_samples") or []
+    for _stem, _core, _n in (st.session_state.get("xs_multi_fit") or [] if samples_x else []):
+        say("INFO", ui("{s} の {c}：報告書に業者のフィットが {n} 通りあります。比較表には最後のものだけが入ります。"
+                       "ほかのフィットとの照合はタブ 2（フィット検証）で選べます。",
+                       "{s} {c}: the report has {n} provider fits; the comparison tables show the last one. "
+                       "Pick the others in tab 2 (Fit check).", s=_stem, c=_core, n=_n))
     _rows = st.session_state.get("xs_match") if samples_x else None
     if _rows:
         _kind = {"multi": ui("複数領域（再フィットに使用）", "multi-region (refit)"),
@@ -1105,6 +1141,9 @@ with tab_x:
                               "treatment_temperature_C": s.meta.get("treatment_temperature_C"), "structure": s.structure,
                               "profile": s.profile, "notes": "; ".join(s.notes)} for s in samples_x])
         st.dataframe(info, hide_index=True)
+        st.caption(ui("このタブでは、試料の構造を報告書のコメント（例：Ti3C2Tx）かメタデータから試料ごとに決めます。左の「試料の設定」は使いません。",
+                      "In this tab the structure of each sample comes from the provider comment (e.g. Ti3C2Tx) or the metadata; "
+                      "the sidebar sample setup is not used."))
         g1, g2 = st.columns(2)
         _gb = {"none": ui("まとめない", "none"), "phase": ui("相（MAX / MXene）", "phase"),
                "composition": ui("組成", "composition"), "treatment": ui("処理", "treatment")}
@@ -1126,7 +1165,8 @@ with tab_x:
         qs = ds.quant_summary(sel)
         st.dataframe(qs, hide_index=True)
         cores_x = sorted({c for s in sel for c in s.mappings})
-        core_pick = st.selectbox(ui("下の表で見るコア準位", "Core level for BE / area-fraction tables"), cores_x, key="xs_core")
+        _metal_first = next((i for i, c in enumerate(cores_x) if c in ("Ti 2p", "Nb 3d")), 0)
+        core_pick = st.selectbox(ui("下の表で見るコア準位", "Core level for BE / area-fraction tables"), cores_x, index=_metal_first, key="xs_core")
         if core_pick in UNSUPPORTED_REGIONS:
             say("CAUTION", ui("{c}：検証済みモデルなし。業者のピークを読み込んだまま表示しています（対にできるものは対にしています）。",
                               "{c}: {t}; provider peaks shown as imported (paired where applicable).", c=core_pick, t=NO_MODEL_TEXT))

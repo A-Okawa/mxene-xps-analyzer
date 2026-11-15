@@ -34,6 +34,37 @@ class Matched:
     rows: list = field(default_factory=list)          # one row per uploaded file (for the matching table)
 
 
+def base_name(name: str) -> str:
+    """File name without folders (a folder upload may report 'folder/sub/file.csv')."""
+    return name.replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def is_provider_report(name: str, data: bytes) -> bool:
+    low = base_name(name).lower()
+    if low.endswith(".pptx"):
+        return True
+    return low.endswith((".txt", ".csv")) and b"Curve Fit Summary" in data[:200000]
+
+
+def is_metadata(name: str, data: bytes) -> bool:
+    head = data[:2000].decode("utf-8-sig", errors="ignore").splitlines()[:1]
+    return bool(head) and "sample_id" in head[0] and "provider_file" in head[0]
+
+
+def split_folder(files):
+    """Sort the files of one uploaded folder into (provider reports, metadata CSV or None, raw-data files)."""
+    reports, meta, raw = [], None, []
+    for f in files or []:
+        name, data = base_name(f.name), f.getvalue()
+        if is_provider_report(name, data):
+            reports.append(f)
+        elif name.lower().endswith(".csv") and meta is None and is_metadata(name, data):
+            meta = f
+        elif name.lower().endswith((".csv", ".txt")):
+            raw.append(f)
+    return reports, meta, raw
+
+
 def file_kind(name: str) -> str:
     low = name.lower()
     if low.endswith(("curve.csv", "curve.txt")):
@@ -60,8 +91,9 @@ def match_uploads(files, data_files) -> Matched:
     out = Matched()
     multi: dict[str, dict] = {s: {} for s in stems}
     curve: dict[str, dict] = {s: {} for s in stems}
-    for f in files or []:
-        name, kind = f.name, file_kind(f.name)
+    for f in sorted(files or [], key=lambda f: base_name(f.name)):
+        name = base_name(f.name)
+        kind = file_kind(name)
         stem = match_stem(name, stems)
         row = {"file": name, "kind": kind, "stem": stem, "regions": "", "status": "", "detail": ""}
         if stem is None:
@@ -73,13 +105,16 @@ def match_uploads(files, data_files) -> Matched:
                 row["status"] = "survey"
             elif kind == "curve":
                 sp = parse_two_column(f.getvalue())
-                reg = name[len(stem) + 1:].rsplit("curve", 1)[0].split("_")[-1]
+                label = name[len(stem) + 1:].rsplit("curve", 1)[0].split("_")[-1]
+                reg = re.sub(r"-\d+$", "", label)      # 'Ti2p-4' = the provider's fit variant 4 of region Ti2p
                 core = phi_region_to_core(reg)
+                if reg != label:
+                    row["detail"] = label
                 if core is None:
-                    row["status"], row["detail"] = "unknown_region", reg
+                    row["status"], row["detail"] = "unknown_region", label
                 else:
                     sp.region, sp.core_level = reg, core
-                    curve[stem][core] = sp
+                    curve[stem].setdefault(core, sp)    # first variant (file-name order) if several
                     row["regions"], row["status"] = core, "used"
             else:
                 regs = [r for r in parse_phi_multiregion(f.getvalue()) if r.core_level]

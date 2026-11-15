@@ -36,8 +36,12 @@ def parse_atomic_concentration(text: str, origin: str = "") -> pd.DataFrame:
         m = re.match(r"Comment:\s*(.*)", l)
         if m and "Data File" not in l:
             meta["comment"] = m.group(1).strip()
-        if l.startswith("Abscissa"):
-            regions = l.split()[1:]
+        # Header row: "Abscissa C1s O1s ..." or, in some MultiPak exports, only the region names ("C1s O1s ...").
+        hdr = l.split()
+        bare_header = (i > 0 and lines[i - 1].startswith("---") and len(hdr) > 0
+                       and all(phi_region_to_core(t) for t in hdr) and i + 1 < len(lines) and lines[i + 1].split()[-1:] == ["RSF"])
+        if l.startswith("Abscissa") or bare_header:
+            regions = hdr[1:] if l.startswith("Abscissa") else hdr
             rsf, conc = None, None
             for nxt in lines[i + 1:i + 6]:
                 toks = nxt.split()
@@ -45,9 +49,9 @@ def parse_atomic_concentration(text: str, origin: str = "") -> pd.DataFrame:
                     rsf = [float(x) for x in toks[:-1]]
                 elif toks and toks[-1] == "CorrectedRSF":
                     continue
-                elif rsf is not None and len(toks) == len(regions) + 1:
-                    try:
-                        conc = [float(x) for x in toks[1:]]
+                elif rsf is not None and len(toks) in (len(regions), len(regions) + 1):
+                    try:   # concentration row with or without a leading label/abscissa column
+                        conc = [float(x) for x in toks[len(toks) - len(regions):]]
                     except ValueError:
                         conc = None
                     break
@@ -85,7 +89,7 @@ def phase_from_composition(comp: str) -> Optional[str]:
     c = comp.replace(" ", "")
     if re.search(r"AlC", c):
         return "MAX"
-    if re.search(r"CT[xz]", c):
+    if re.search(r"C\d*T[xz]", c):      # Nb2CTx, (Nb,Ti)2CTx and also Ti3C2Tx, Nb4C3Tz
         return "MXene"
     return None
 
