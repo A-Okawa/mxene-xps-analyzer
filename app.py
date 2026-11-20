@@ -139,7 +139,7 @@ with st.sidebar:
     st.header(ui("① 試料の設定", "① Sample setup"))
     st.caption(ui("最初に試料の構造を選んでください。フィットモデルと定量の基準がここで決まります。",
                   "Choose the sample structure first; it sets the fit model and the quantification basis."))
-    _order = ["(Nb,Ti)2CTx", "Nb2CTx", "Ti3C2Tx"]
+    _order = ["Ti3C2Tx", "Nb2CTx", "(Nb,Ti)2CTx"]
     _custom = {"Custom": ui("その他（手動設定）", "Custom")}
     structure = st.selectbox(ui("試料の構造", "Nominal structure"),
                              _order + [k for k in KB.structures if k not in _order] + ["Custom"], key="sb_structure",
@@ -244,8 +244,8 @@ st.caption(ui("検証の状況：リリース候補版。校正に使ったの�
 _started = any(st.session_state.get(k) for k in ("quant", "fits", "xs_samples"))
 with st.expander(ui("📖 使い方", "📖 How to use"), expanded=not _started):
     st.markdown(ui(
-        "まず左の **① 試料の設定** で試料の構造（例：(Nb,Ti)2CTx）を選び、目的に合うタブへ進んでください。",
-        "First choose the sample structure (e.g. (Nb,Ti)2CTx) under **① Sample setup** on the left, then go to the tab "
+        "まず左の **① 試料の設定** で試料の構造（例：Ti3C2Tx）を選び、目的に合うタブへ進んでください。",
+        "First choose the sample structure (e.g. Ti3C2Tx) under **① Sample setup** on the left, then go to the tab "
         "for what you want to do."))
     st.markdown(ui(
         "| やりたいこと | タブ | 用意するもの |\n|---|---|---|\n"

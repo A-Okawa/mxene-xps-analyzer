@@ -18,6 +18,7 @@ def _app(lang="en"):
 def test_app_renders_all_tabs():
     at = _app()
     assert len(at.tabs) == 6
+    at.selectbox(key="sb_structure").select("(Nb,Ti)2CTx").run()     # request content of the mixed-metal profile
     req = next(t for t in at.text_area if t.label == "Request text").value
     assert "Ti 2p: 4 candidate doublet(s)" in req and "do NOT force a vacancy-specific" in req
 
@@ -102,12 +103,12 @@ def test_query_parameter_selects_english():
 
 def test_switching_language_keeps_inputs():
     at = _app("ja")
-    at.text_input(key="sb_name_(Nb,Ti)2CTx").set_value("S-42").run()
+    at.text_input(key="sb_name_Ti3C2Tx").set_value("S-42").run()
     at.radio(key="v_src").set_value("upload").run()
     at.checkbox(key="v_demo").check().run()
     at.radio(key="lang").set_value("en").run()
     assert not at.exception
-    assert at.text_input(key="sb_name_(Nb,Ti)2CTx").value == "S-42"
+    assert at.text_input(key="sb_name_Ti3C2Tx").value == "S-42"
     assert at.checkbox(key="v_demo").value is True
     assert at.tabs[0].label == "1. Import & compare"
 
@@ -174,3 +175,7 @@ def test_fit_check_tab1_without_data_explains_what_to_do():
     at = _app("ja")
     assert any("タブ 1" in i.value for i in at.info)
     assert not at.exception
+
+
+def test_default_structure_is_ti3c2tx():
+    assert _app().selectbox(key="sb_structure").value == "Ti3C2Tx"
